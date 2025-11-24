@@ -12,6 +12,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const { logger } = require('./utils/logger');
+const errorHandler = require('./middleware/errorHandler');
+const AppError = require('./utils/AppError');
 
 const app = express();
 
@@ -80,44 +82,25 @@ app.get('/api/test', (req, res) => {
 });
 
 // ============================================
-// API ROUTES (To be added)
+// API ROUTES
 // ============================================
+// Mount incident routes
+app.use('/api', require('./modules/incidents/incident.routes'));
+
+// Future routes:
 // app.use('/api/auth', require('./modules/auth/auth.routes'));
-// app.use('/api/incidents', require('./modules/incidents/incident.routes'));
+// app.use('/api/nodes', require('./modules/nodes/node.routes'));
 
 // ============================================
 // 404 HANDLER
 // ============================================
-app.all('*', (req, res) => {
-  res.status(404).json({
-    status: 'fail',
-    message: `Cannot find ${req.originalUrl} on this server`,
-  });
+app.all('*', (req, res, next) => {
+  next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
 });
 
 // ============================================
 // GLOBAL ERROR HANDLER
 // ============================================
-app.use((err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
-
-  if (process.env.NODE_ENV === 'development') {
-    logger.error(err.stack);
-    res.status(err.statusCode).json({
-      status: err.status,
-      error: err,
-      message: err.message,
-      stack: err.stack,
-    });
-  } else {
-    // Production: Don't leak error details
-    logger.error(err.message);
-    res.status(err.statusCode).json({
-      status: err.status,
-      message: err.isOperational ? err.message : 'Internal Server Error',
-    });
-  }
-});
+app.use(errorHandler);
 
 module.exports = app;
