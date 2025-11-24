@@ -5,6 +5,7 @@ import Badge from '../../../components/ui/Badge.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import Tag from '../../../components/ui/Tag.jsx';
 import ActionCard from './ActionCard.jsx';
+import { confirmAccident, rejectAccident } from '../services/incidentDecisionService.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 /**
@@ -15,7 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
  * @param {function} props.onConfirm - receives selected actions array
  * @param {object} props.incident - incident data
  */
-function AccidentDialog({ open, onClose, onConfirm, incident }) {
+function AccidentDialog({ open, onClose, incident, onDecision }) {
   const [selected, setSelected] = useState(['reduce-speed', 'block-routes', 'call-emergency']);
 
   const actions = useMemo(() => ([
@@ -28,9 +29,30 @@ function AccidentDialog({ open, onClose, onConfirm, incident }) {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const handleConfirm = () => {
-    onConfirm?.(selected);
-    onClose?.();
+  const handleConfirm = async () => {
+    try {
+      const incidentId = incident?.incidentId || '';
+      const nodeId = incident?.nodeId || 0;
+      const res = await confirmAccident(incidentId, nodeId, selected);
+      onDecision?.(res.decision);
+    } catch (e) {
+      console.error('Confirm error', e);
+    } finally {
+      onClose?.();
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      const incidentId = incident?.incidentId || '';
+      const nodeId = incident?.nodeId || 0;
+      const res = await rejectAccident(incidentId, nodeId);
+      onDecision?.(res.decision);
+    } catch (e) {
+      console.error('Reject error', e);
+    } finally {
+      onClose?.();
+    }
   };
 
   const timeString = incident?.timestamp ? new Date(incident.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
@@ -58,7 +80,16 @@ function AccidentDialog({ open, onClose, onConfirm, incident }) {
             <div className="w-[420px] flex flex-col gap-6">
               <div className="rounded-lg overflow-hidden bg-gradient-to-br from-safe-gray-light/10 to-safe-gray-light/20 border border-safe-border h-[280px] flex items-center justify-center shadow-inner">
                 {incident?.imageUrl ? (
-                  <img src={incident.imageUrl} alt="Accident frame" className="object-cover w-full h-full" />
+                  <img 
+                    src={incident.imageUrl} 
+                    alt="Accident frame" 
+                    className="object-cover w-full h-full"
+                    onError={(e) => {
+                      console.error('Image load error:', incident.imageUrl);
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '<div class="flex flex-col items-center gap-2"><svg class="text-safe-text-gray/40 text-2xl w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><span class="text-xs text-safe-text-gray font-medium">Image failed to load</span></div>';
+                    }}
+                  />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <FontAwesomeIcon icon="exclamation-triangle" className="text-safe-text-gray/40 text-2xl" />
@@ -118,7 +149,7 @@ function AccidentDialog({ open, onClose, onConfirm, incident }) {
 
         {/* Footer */}
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" onClick={handleCancel}>Cancel</Button>
           <Button variant="primary" onClick={handleConfirm}>Confirm Actions</Button>
         </Modal.Footer>
       </Card>

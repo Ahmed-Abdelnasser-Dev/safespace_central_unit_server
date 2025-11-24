@@ -37,6 +37,29 @@ const accidentDetectedSchema = z.object({
   }),
 });
 
+/**
+ * Schema for accident decision review (admin/operator confirmation)
+ * Validates actions selected or rejection status.
+ */
+const accidentDecisionSchema = z.object({
+  body: z.object({
+    incidentId: z.string({ required_error: 'incidentId is required' }),
+    nodeId: z.number({ required_error: 'nodeId is required' }).int().positive(),
+    status: z.enum(['CONFIRMED', 'REJECTED']),
+    actions: z.array(z.enum(['reduce-speed', 'block-routes', 'call-emergency'])).optional(),
+    message: z.string().optional(),
+  }).refine((data) => {
+    // If confirmed must have at least one action
+    if (data.status === 'CONFIRMED') return Array.isArray(data.actions) && data.actions.length > 0;
+    // If rejected must include message
+    if (data.status === 'REJECTED') return typeof data.message === 'string' && data.message.length > 2;
+    return false;
+  }, {
+    message: 'Invalid decision payload: CONFIRMED requires actions; REJECTED requires message.'
+  }),
+});
+
 module.exports = {
   accidentDetectedSchema,
+  accidentDecisionSchema,
 };

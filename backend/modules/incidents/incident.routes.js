@@ -14,7 +14,7 @@ const fs = require('fs');
 const AppError = require('../../utils/AppError');
 const incidentController = require('./incident.controller');
 const validate = require('../../middleware/validate');
-const { accidentDetectedSchema } = require('./incident.schema');
+const { accidentDetectedSchema, accidentDecisionSchema } = require('./incident.schema');
 
 const router = express.Router();
 
@@ -88,6 +88,16 @@ router.post(
   handleMulterError,
   validate(accidentDetectedSchema),
   incidentController.accidentDetected
+);
+
+/**
+ * POST /api/accident-decision
+ * Receives admin/operator decision review for an accident.
+ */
+router.post(
+  '/accident-decision',
+  validate(accidentDecisionSchema),
+  incidentController.accidentDecision
 );
 
 module.exports = router;

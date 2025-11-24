@@ -9,6 +9,45 @@
 
 const { logger } = require('../../utils/logger');
 
+// In-memory store for pending accident decisions
+const pendingDecisions = new Map();
+
+/**
+ * Wait for admin decision on accident
+ * @param {string} incidentId - unique identifier for incident
+ * @param {number} timeout - milliseconds to wait before auto-reject
+ * @returns {Promise<Object>} decision object
+ */
+function waitForDecision(incidentId, timeout = 120000) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (pendingDecisions.has(incidentId)) {
+        pendingDecisions.delete(incidentId);
+        logger.warn(`Decision timeout for incident ${incidentId}`);
+        resolve({ status: 'TIMEOUT', actions: [], message: 'No decision received' });
+      }
+    }, timeout);
+
+    pendingDecisions.set(incidentId, { resolve, timer });
+  });
+}
+
+/**
+ * Resolve pending decision
+ * @param {string} incidentId
+ * @param {Object} decision
+ */
+function resolveDecision(incidentId, decision) {
+  const pending = pendingDecisions.get(incidentId);
+  if (pending) {
+    clearTimeout(pending.timer);
+    pending.resolve(decision);
+    pendingDecisions.delete(incidentId);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Process accident detection data from Edge Node
  * 
@@ -26,36 +65,65 @@ const { logger } = require('../../utils/logger');
  * @param {string} incidentData.imagePath - Path to uploaded accident image
  * @returns {Object} Decision result with speed limit and node display instructions
  */
-const processAccidentDetection = async (incidentData) => {
+const processAccidentDetection = async (incidentData, io) => {
   const { lat, long, lanNumber, nodeId, imagePath } = incidentData;
 
   logger.info(`Processing accident from Node ${nodeId} at coordinates (${lat}, ${long}), Lane ${lanNumber}`);
 
-  // TODO: Future enhancements
-  // 1. Cross-node correlation checks
-  // 2. Severity calculation using @turf/turf for affected radius
-  // 3. Query nearby nodes within affected area
-  // 4. Integration with AI model for image analysis
-  // 5. Database persistence (Live Event Data)
+  // Generate unique incident ID
+  const incidentId = `incident_${nodeId}_${Date.now()}`;
 
-  // Decision Logic - Calculate recommended speed limit
-  // For now, implementing simple rule-based logic
-  // CRITICAL accidents -> 40 km/h, WARNING -> 60 km/h
-  const calculatedSpeedLimit = 40; // Default critical response
-
-  // Prepare control command for the Edge Node
-  const nodeDisplayConfig = {
-    nodeId: nodeId,
-    message: `ACCIDENT DETECTED - LANE ${lanNumber} BLOCKED`,
-    displayMode: 'ALERT', // Can be: ALERT, WARNING, NORMAL
+  // Prepare incident data for dashboard
+  const incidentPayload = {
+    incidentId,
+    nodeId,
+    latitude: parseFloat(lat),
+    longitude: parseFloat(long),
+    lanNumber,
+    lanes: [`Lane ${lanNumber}`],
+    locationName: `Highway Node ${nodeId}`,
+    imagePath,
+    imageUrl: imagePath ? `/uploads/incidents/${imagePath.split('/').pop()}` : null,
+    timestamp: Date.now(),
+    severity: 'CRITICAL',
   };
 
-  // Audit Trail: Log decision
-  logger.info(`Decision made for Node ${nodeId}: Speed Limit = ${calculatedSpeedLimit} km/h`);
+  // Emit to connected dashboard clients
+  logger.info(`Emitting accident event to dashboard: ${incidentId}`);
+  io.emit('accident-detected', incidentPayload);
+
+  // Wait for admin decision
+  logger.info(`Waiting for admin decision on ${incidentId}...`);
+  const decision = await waitForDecision(incidentId);
+
+  logger.info(`Decision received for ${incidentId}: ${decision.status}`);
+
+  // Process decision
+  let speedLimit = null;
+  let nodeDisplayConfig = {
+    nodeId,
+    message: 'NORMAL',
+    displayMode: 'NORMAL',
+  };
+
+  if (decision.status === 'CONFIRMED') {
+    speedLimit = decision.actions.includes('reduce-speed') ? 40 : null;
+    const displayMessage = decision.actions.includes('block-routes')
+      ? `LANE ${lanNumber} BLOCKED - REDUCE SPEED`
+      : 'ACCIDENT - CAUTION';
+    nodeDisplayConfig = {
+      nodeId,
+      message: displayMessage,
+      displayMode: 'ALERT',
+    };
+  }
+
+  logger.info(`Decision applied for Node ${nodeId}: Speed Limit = ${speedLimit || 'unchanged'} km/h`);
 
   return {
-    speedLimit: calculatedSpeedLimit,
+    speedLimit,
     nodeDisplay: nodeDisplayConfig,
+    decision,
   };
 };
 
@@ -75,4 +143,50 @@ const storeAccidentImage = (imagePath) => {
 module.exports = {
   processAccidentDetection,
   storeAccidentImage,
+  processAccidentDecision,
+  waitForDecision,
+  resolveDecision,
 };
+
+/**
+ * Process operator/admin decision for an accident.
+ * Logs audit trail and prepares control responses to nodes.
+ * @param {Object} decisionData
+ * @param {number} decisionData.nodeId
+ * @param {('CONFIRMED'|'REJECTED')} decisionData.status
+ * @param {string[]} [decisionData.actions]
+ * @param {string} [decisionData.message]
+ * @returns {Object} structured decision result
+ */
+async function processAccidentDecision(decisionData) {
+  const { incidentId, nodeId, status, actions = [], message } = decisionData;
+
+  // Resolve the pending decision
+  const resolved = resolveDecision(incidentId, { status, actions, message });
+  
+  if (!resolved) {
+    logger.warn(`No pending decision found for incident ${incidentId}`);
+  }
+
+  if (status === 'REJECTED') {
+    logger.warn(`Accident report ${incidentId} rejected: ${message}`);
+    return {
+      incidentId,
+      nodeId,
+      status,
+      actions: [],
+      message,
+    };
+  }
+
+  // CONFIRMED logic
+  logger.info(`Accident decision confirmed for ${incidentId}. Actions: ${actions.join(', ')}`);
+
+  return {
+    incidentId,
+    nodeId,
+    status,
+    actions,
+    message: 'Decision applied successfully',
+  };
+}

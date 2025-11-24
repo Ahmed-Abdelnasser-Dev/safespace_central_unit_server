@@ -5,11 +5,35 @@
 
 require('dotenv').config();
 const net = require('net');
+const http = require('http');
+const { Server } = require('socket.io');
 const app = require('./app');
 const { logger } = require('./utils/logger');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4000';
+
+// Create HTTP server and Socket.IO instance
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: FRONTEND_URL,
+    credentials: true,
+  },
+});
+
+// Make io accessible to app
+app.set('io', io);
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  logger.info(`Dashboard client connected: ${socket.id}`);
+
+  socket.on('disconnect', () => {
+    logger.info(`Dashboard client disconnected: ${socket.id}`);
+  });
+});
 
 function ensurePortAvailable(port) {
   return new Promise((resolve, reject) => {
@@ -31,7 +55,7 @@ function ensurePortAvailable(port) {
 
 ensurePortAvailable(PORT)
   .then(() => {
-    const server = app
+    server
       .listen(PORT, () => {
         logger.info('Safe Space Central Unit is running');
         logger.info(`Environment: ${NODE_ENV}`);

@@ -53,8 +53,11 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     imagePath: req.file.path,
   };
 
-  // Process accident detection (business logic)
-  const result = await incidentService.processAccidentDetection(incidentData);
+  // Get Socket.IO instance
+  const io = req.app.get('io');
+
+  // Process accident detection (will wait for admin decision)
+  const result = await incidentService.processAccidentDetection(incidentData, io);
 
   // Log successful processing
   logger.info(`Accident processed successfully from Node ${parsedNodeId}`);
@@ -64,10 +67,23 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     success: true,
     speedLimit: result.speedLimit,
     nodeDisplay: result.nodeDisplay,
+    decision: result.decision,
     receivedAt: new Date().toISOString(),
   });
 });
 
 module.exports = {
   accidentDetected,
+  accidentDecision: catchAsync(async (req, res) => {
+    const { incidentId, nodeId, status, actions, message } = req.body;
+    const decision = await incidentService.processAccidentDecision({
+      incidentId,
+      nodeId: Number(nodeId),
+      status,
+      actions,
+      message,
+    });
+    logger.info(`Decision recorded for incident ${incidentId}: ${status}`);
+    res.status(200).json({ success: true, decision, receivedAt: new Date().toISOString() });
+  }),
 };

@@ -34,6 +34,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ============================================
+// STATIC FILE SERVING
+// ============================================
+app.use('/uploads', express.static('uploads'));
+
+// ============================================
 // LOGGING MIDDLEWARE
 // ============================================
 if (process.env.NODE_ENV === 'development') {
