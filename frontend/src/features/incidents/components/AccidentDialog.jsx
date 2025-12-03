@@ -7,6 +7,7 @@ import Tag from '../../../components/ui/Tag.jsx';
 import ActionCard from './ActionCard.jsx';
 import { confirmAccident, rejectAccident } from '../services/incidentDecisionService.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useEffect } from 'react';
 
 /**
  * AccidentDialog – Displays incoming accident details & suggested actions.
@@ -78,25 +79,7 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         <div className="px-8 py-7 flex gap-8">
           {/* Left: Image & meta */}
             <div className="w-[420px] flex flex-col gap-6">
-              <div className="rounded-lg overflow-hidden bg-gradient-to-br from-safe-gray-light/10 to-safe-gray-light/20 border border-safe-border h-[280px] flex items-center justify-center shadow-inner">
-                {incident?.imageUrl ? (
-                  <img 
-                    src={incident.imageUrl} 
-                    alt="Accident frame" 
-                    className="object-cover w-full h-full"
-                    onError={(e) => {
-                      console.error('Image load error:', incident.imageUrl);
-                      e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = '<div class="flex flex-col items-center gap-2"><svg class="text-safe-text-gray/40 text-2xl w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><span class="text-xs text-safe-text-gray font-medium">Image failed to load</span></div>';
-                    }}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <FontAwesomeIcon icon="exclamation-triangle" className="text-safe-text-gray/40 text-2xl" />
-                    <span className="text-xs text-safe-text-gray font-medium">No image available</span>
-                  </div>
-                )}
-              </div>
+              <MediaCarousel mediaList={incident?.mediaList || []} />
               <div className="space-y-5">
                 <div className="bg-safe-bg/50 rounded-lg p-4 border border-safe-border/50">
                   <div className="flex items-center gap-2 text-[11px] text-safe-text-gray/80 mb-2.5 uppercase tracking-wider">
@@ -158,3 +141,47 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
 }
 
 export default AccidentDialog;
+
+/**
+ * MediaCarousel – displays a list of images/videos with controls.
+ * @param {{mediaList: Array<{url: string, type: 'image'|'video'}>}} props
+ */
+function MediaCarousel({ mediaList = [] }) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => { setIndex(0); }, [mediaList]);
+
+  const hasMedia = mediaList && mediaList.length > 0;
+  const current = hasMedia ? mediaList[index] : null;
+
+  const next = () => setIndex((i) => (i + 1) % mediaList.length);
+  const prev = () => setIndex((i) => (i - 1 + mediaList.length) % mediaList.length);
+
+  return (
+    <div className="rounded-lg overflow-hidden bg-gradient-to-br from-safe-gray-light/10 to-safe-gray-light/20 border border-safe-border h-[280px] flex items-center justify-center shadow-inner relative">
+      {current ? (
+        current.type === 'video' ? (
+          <video src={current.url} className="object-cover w-full h-full" controls autoPlay muted />
+        ) : (
+          <img src={current.url} alt={`Accident media ${index+1}`} className="object-cover w-full h-full" />
+        )
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <FontAwesomeIcon icon="exclamation-triangle" className="text-safe-text-gray/40 text-2xl" />
+          <span className="text-xs text-safe-text-gray font-medium">No media available</span>
+        </div>
+      )}
+
+      {hasMedia && (
+        <>
+          <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white text-safe-text-dark rounded-full w-8 h-8 flex items-center justify-center shadow-sm">‹</button>
+          <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white text-safe-text-dark rounded-full w-8 h-8 flex items-center justify-center shadow-sm">›</button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {mediaList.map((_, i) => (
+              <span key={i} className={`w-2 h-2 rounded-full ${i === index ? 'bg-safe-blue-btn' : 'bg-white/70'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

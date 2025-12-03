@@ -39,9 +39,9 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     return next(new AppError('lanNumber and nodeId must be valid integers', 400));
   }
 
-  // Validate image file
-  if (!req.file) {
-    return next(new AppError('Image is required', 400));
+  // Validate at least one media file
+  if (!req.files || req.files.length === 0) {
+    return next(new AppError('At least one media file is required (images/videos)', 400));
   }
 
   // Prepare incident data
@@ -50,7 +50,7 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     long,
     lanNumber: parsedLanNumber,
     nodeId: parsedNodeId,
-    imagePath: req.file.path,
+    mediaPaths: req.files.map(f => f.path),
   };
 
   // Get Socket.IO instance
