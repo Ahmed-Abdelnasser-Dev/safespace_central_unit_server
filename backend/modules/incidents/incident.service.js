@@ -73,6 +73,11 @@ const processAccidentDetection = async (incidentData, io) => {
   // Generate unique incident ID
   const incidentId = `incident_${nodeId}_${Date.now()}`;
 
+  // Detect if file is video or image
+  const fileExtension = imagePath ? imagePath.split('.').pop().toLowerCase() : '';
+  const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
+  const mediaType = videoExtensions.includes(fileExtension) ? 'video' : 'image';
+
   // Prepare incident data for dashboard
   const incidentPayload = {
     incidentId,
@@ -84,6 +89,7 @@ const processAccidentDetection = async (incidentData, io) => {
     locationName: `Highway Node ${nodeId}`,
     imagePath,
     imageUrl: imagePath ? `/uploads/incidents/${imagePath.split('/').pop()}` : null,
+    mediaType,
     timestamp: Date.now(),
     severity: 'CRITICAL',
   };

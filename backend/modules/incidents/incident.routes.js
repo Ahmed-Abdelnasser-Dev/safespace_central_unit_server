@@ -41,14 +41,29 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter - validate MIME types
+// File filter - validate MIME types (images and videos)
 const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ['image/png', 'image/webp', 'image/jpeg', 'image/jpg'];
+  const allowedMimeTypes = [
+    'image/png', 
+    'image/webp', 
+    'image/jpeg', 
+    'image/jpg',
+    'video/mp4',
+    'video/webm',
+    'video/mpeg',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/x-matroska',
+    'application/octet-stream' // Some systems send MP4 as this
+  ];
+  
+  // Log the detected MIME type for debugging
+  console.log(`File upload - Name: ${file.originalname}, MIME: ${file.mimetype}`);
   
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new AppError('Only PNG, WEBP, and JPEG image formats are allowed.', 400), false);
+    cb(new AppError(`File type not allowed. Received: ${file.mimetype}. Only PNG, JPEG, MP4, WEBM, and MOV formats are allowed.`, 400), false);
   }
 };
 
@@ -57,7 +72,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    fileSize: 100 * 1024 * 1024, 
   },
 });
 
