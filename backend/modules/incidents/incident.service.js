@@ -66,17 +66,21 @@ function resolveDecision(incidentId, decision) {
  * @returns {Object} Decision result with speed limit and node display instructions
  */
 const processAccidentDetection = async (incidentData, io) => {
-  const { lat, long, lanNumber, nodeId, imagePath } = incidentData;
+  const { lat, long, lanNumber, nodeId, mediaPaths = [] } = incidentData;
 
   logger.info(`Processing accident from Node ${nodeId} at coordinates (${lat}, ${long}), Lane ${lanNumber}`);
 
   // Generate unique incident ID
   const incidentId = `incident_${nodeId}_${Date.now()}`;
 
-  // Detect if file is video or image
-  const fileExtension = imagePath ? imagePath.split('.').pop().toLowerCase() : '';
+  // Build media list with type and URL
   const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
-  const mediaType = videoExtensions.includes(fileExtension) ? 'video' : 'image';
+  const mediaList = mediaPaths.map((p) => {
+    const ext = p.split('.').pop().toLowerCase();
+    const type = videoExtensions.includes(ext) ? 'video' : 'image';
+    const url = `/uploads/incidents/${p.split('/').pop()}`;
+    return { url, type };
+  });
 
   // Prepare incident data for dashboard
   const incidentPayload = {
@@ -87,9 +91,7 @@ const processAccidentDetection = async (incidentData, io) => {
     lanNumber,
     lanes: [`Lane ${lanNumber}`],
     locationName: `Highway Node ${nodeId}`,
-    imagePath,
-    imageUrl: imagePath ? `/uploads/incidents/${imagePath.split('/').pop()}` : null,
-    mediaType,
+    mediaList,
     timestamp: Date.now(),
     severity: 'CRITICAL',
   };

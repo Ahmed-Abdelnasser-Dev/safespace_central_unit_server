@@ -99,7 +99,8 @@ const handleMulterError = (err, req, res, next) => {
  */
 router.post(
   '/accident-detected',
-  upload.single('image'),
+  // Accept multiple media files under field name 'media'
+  upload.array('media', 10),
   handleMulterError,
   validate(accidentDetectedSchema),
   incidentController.accidentDetected
