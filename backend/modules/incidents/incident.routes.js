@@ -96,6 +96,7 @@ const handleMulterError = (err, req, res, next) => {
 /**
  * POST /api/accident-detected
  * Receives accident detection data from Edge Nodes
+ * Protected by Node authentication middleware
  */
 router.post(
   '/accident-detected',
