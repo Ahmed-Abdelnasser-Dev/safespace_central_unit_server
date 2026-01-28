@@ -14,7 +14,7 @@ const fs = require('fs');
 const AppError = require('../../utils/AppError');
 const incidentController = require('./incident.controller');
 const validate = require('../../middleware/validate');
-const { accidentDetectedSchema, accidentDecisionSchema } = require('./incident.schema');
+const { accidentDetectedSchema, accidentDecisionSchema, mobileAccidentDetectedSchema } = require('./incident.schema');
 
 const router = express.Router();
 
@@ -115,6 +115,17 @@ router.post(
   '/accident-decision',
   validate(accidentDecisionSchema),
   incidentController.accidentDecision
+);
+
+/**
+ * POST /api/mobile-accident-detected
+ * Receives accident reports from external mobile/external servers
+ * No authentication required, no media files needed
+ */
+router.post(
+  '/mobile-accident-detected',
+  validate(mobileAccidentDetectedSchema),
+  incidentController.mobileAccidentDetected
 );
 
 module.exports = router;

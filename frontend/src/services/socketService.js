@@ -1,4 +1,12 @@
 /**
+ * Emit admin accident response to backend (to node)
+ * @param {object} response - The response object to send
+ */
+export function emitAdminAccidentResponse(response) {
+  const s = getSocket();
+  s.emit('admin_accident_response', response);
+}
+/**
  * Socket.IO Client Service
  * Manages real-time connection to backend for accident notifications
  */

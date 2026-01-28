@@ -18,23 +18,27 @@ const accidentDetectedSchema = z.object({
     lat: z.string({
       required_error: 'Latitude is required',
     }).min(1, 'Latitude cannot be empty'),
-    
+
     long: z.string({
       required_error: 'Longitude is required',
     }).min(1, 'Longitude cannot be empty'),
-    
+
     lanNumber: z.string({
       required_error: 'Lane number is required',
     }).refine((val) => !isNaN(parseInt(val, 10)), {
       message: 'lanNumber must be a valid integer',
     }),
-    
+
     nodeId: z.string({
       required_error: 'Node ID is required',
     }).refine((val) => !isNaN(parseInt(val, 10)), {
       message: 'nodeId must be a valid integer',
     }),
   }),
+  files: z.array(z.any(), {
+    required_error: 'At least one media file is required (images/videos)',
+    invalid_type_error: 'Media must be an array of files',
+  }).min(1, 'At least one media file is required (images/videos)'),
 });
 
 /**
@@ -59,7 +63,34 @@ const accidentDecisionSchema = z.object({
   }),
 });
 
+/**
+ * Schema for mobile/external accident report endpoint
+ * Accepts reports from external servers without multipart uploads
+ */
+const mobileAccidentDetectedSchema = z.object({
+  body: z.object({
+    description: z.string({
+      required_error: 'Description is required',
+    }).min(1, 'Description cannot be empty'),
+    
+    latitude: z.string({
+      required_error: 'Latitude is required',
+    }).min(1, 'Latitude cannot be empty')
+      .transform(val => parseFloat(val)),
+    
+    longitude: z.string({
+      required_error: 'Longitude is required',
+    }).min(1, 'Longitude cannot be empty')
+      .transform(val => parseFloat(val)),
+    
+    severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], {
+      required_error: 'Severity must be one of: LOW, MEDIUM, HIGH, CRITICAL',
+    }),
+  }),
+});
+
 module.exports = {
   accidentDetectedSchema,
   accidentDecisionSchema,
+  mobileAccidentDetectedSchema,
 };

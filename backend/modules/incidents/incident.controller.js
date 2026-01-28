@@ -86,4 +86,50 @@ module.exports = {
     logger.info(`Decision recorded for incident ${incidentId}: ${status}`);
     res.status(200).json({ success: true, decision, receivedAt: new Date().toISOString() });
   }),
+
+  /**
+   * Handle POST /api/mobile-accident-detected
+   * 
+   * Receives accident reports from external mobile/external servers
+   * without multipart file upload. Emits to dashboard for admin review.
+   * 
+   * @route POST /api/mobile-accident-detected
+   * @access Public
+   */
+  mobileAccidentDetected: catchAsync(async (req, res, next) => {
+    const { description, latitude, longitude, severity } = req.body;
+
+    logger.info(`Mobile accident report: ${description} at (${latitude}, ${longitude}) - Severity: ${severity}`);
+
+    // Generate unique incident ID
+    const incidentId = `mobile_incident_${Date.now()}`;
+    const nodeId = 999; // Default external source ID
+
+    // Prepare incident data for dashboard
+    const incidentPayload = {
+      incidentId,
+      nodeId,
+      latitude,
+      longitude,
+      lanNumber: 0, // N/A for mobile reports
+      lanes: [],
+      locationName: description,
+      mediaList: [],
+      timestamp: Date.now(),
+      severity: severity.toUpperCase(),
+    };
+
+    // Get Socket.IO instance and emit to dashboard
+    const io = req.app.get('io');
+    logger.info(`Emitting mobile accident to dashboard: ${incidentId}`);
+    io.emit('accident-detected', incidentPayload);
+
+    // Return success immediately (no admin decision wait required for mobile)
+    res.status(200).json({
+      success: true,
+      incidentId,
+      message: 'Accident report received and displayed on dashboard',
+      timestamp: new Date().toISOString(),
+    });
+  }),
 };

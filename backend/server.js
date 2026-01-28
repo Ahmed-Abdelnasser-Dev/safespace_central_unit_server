@@ -53,6 +53,27 @@ app.set('io', io);
 io.on('connection', (socket) => {
   logger.info(`Dashboard client connected: ${socket.id}`);
 
+  // Listen for admin accident response from dashboard
+  socket.on('admin_accident_response', (data) => {
+    try {
+      // Validate required fields
+      if (!data || typeof data !== 'object' || !data.incidentId) {
+        logger.warn('Invalid admin_accident_response payload received');
+        return;
+      }
+      // Always add timestamp if not present
+      if (!data.timestamp) {
+        data.timestamp = new Date().toISOString();
+      }
+      // Log and relay to node (broadcast or emit to specific node if needed)
+      logger.info(`Relaying admin_accident_response for incident ${data.incidentId}: ${JSON.stringify(data)}`);
+      // For now, broadcast to all connected nodes (customize as needed)
+      io.emit('admin_accident_response', data);
+    } catch (err) {
+      logger.error('Error handling admin_accident_response:', err);
+    }
+  });
+
   socket.on('disconnect', () => {
     logger.info(`Dashboard client disconnected: ${socket.id}`);
   });
