@@ -8,9 +8,36 @@
  */
 
 const { logger } = require('../../utils/logger');
+const MobileAppNotificationService = require('../../utils/mobileAppNotificationService');
+const dotenv = require('dotenv');
+dotenv.config();
+const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
 
 // In-memory store for pending accident decisions
 const pendingDecisions = new Map();
+// In-memory store for incident data by incidentId
+const incidentDataMap = new Map();
+// Track recent notifications sent to Mobile App Server to avoid duplicate re-emits
+const recentMobileNotifications = new Map();
+const MOBILE_NOTIFICATION_TTL_MS = 15000; // 15 seconds
+
+function _roundCoord(v) {
+  return Math.round(Number(v) * 10000) / 10000;
+}
+
+function addRecentMobileNotification({ latitude, longitude, nodeId, timestamp = Date.now() }) {
+  const key = `${_roundCoord(latitude)}:${_roundCoord(longitude)}:${nodeId || '0'}`;
+  recentMobileNotifications.set(key, timestamp);
+}
+
+function isRecentMobileNotification({ latitude, longitude, nodeId }) {
+  const key = `${_roundCoord(latitude)}:${_roundCoord(longitude)}:${nodeId || '0'}`;
+  const ts = recentMobileNotifications.get(key);
+  if (!ts) return false;
+  if (Date.now() - ts <= MOBILE_NOTIFICATION_TTL_MS) return true;
+  recentMobileNotifications.delete(key);
+  return false;
+}
 
 /**
  * Wait for admin decision on accident
@@ -72,6 +99,14 @@ const processAccidentDetection = async (incidentData, io) => {
 
   // Generate unique incident ID
   const incidentId = `incident_${nodeId}_${Date.now()}`;
+    // Store incident data for later retrieval (for notification)
+    incidentDataMap.set(incidentId, {
+      lat,
+      long,
+      lanNumber,
+      nodeId,
+      timestamp: Date.now(),
+    });
 
   // Build media list with type and URL
   const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
@@ -157,6 +192,20 @@ module.exports = {
 };
 
 /**
+ * Register an incident that originated from an external server (mobile)
+ * Stores minimal incident context so admin decisions can reference it later.
+ */
+function registerExternalIncident(incidentId, data) {
+  incidentDataMap.set(incidentId, data);
+}
+
+module.exports.registerExternalIncident = registerExternalIncident;
+
+// Export helpers for mobile notification tracking
+module.exports.addRecentMobileNotification = addRecentMobileNotification;
+module.exports.isRecentMobileNotification = isRecentMobileNotification;
+
+/**
  * Process operator/admin decision for an accident.
  * Logs audit trail and prepares control responses to nodes.
  * @param {Object} decisionData
@@ -189,6 +238,33 @@ async function processAccidentDecision(decisionData) {
 
   // CONFIRMED logic
   logger.info(`Accident decision confirmed for ${incidentId}. Actions: ${actions.join(', ')}`);
+    const incident = incidentDataMap.get(incidentId);
+    if (incident) {
+      logger.info(`[MOBILE APP NOTIFY] Triggering request to Mobile App Server for Node ${incident.nodeId} Lane ${incident.lanNumber} (incidentId: ${incidentId})`);
+      await mobileAppNotificationService.notifyAccident({
+        centralUnitAccidentId: incidentId,
+        occurredAt: new Date(incident.timestamp).toISOString(),
+        location: {
+          lat: typeof incident.lat === 'string' ? parseFloat(incident.lat) : incident.lat,
+          lng: typeof incident.long === 'string' ? parseFloat(incident.long) : incident.long,
+        },
+      });
+      // Mark this notification so we can ignore the mobile server's callback duplicate
+      try {
+        addRecentMobileNotification({
+          latitude: typeof incident.lat === 'string' ? parseFloat(incident.lat) : incident.lat,
+          longitude: typeof incident.long === 'string' ? parseFloat(incident.long) : incident.long,
+          nodeId: incident.nodeId,
+          timestamp: Date.now(),
+        });
+      } catch (e) {
+        logger.error('Failed to add recent mobile notification marker', e.message || e);
+      }
+      logger.info(`Mobile App Server notified for Node ${incident.nodeId} Lane ${incident.lanNumber} after admin confirmation.`);
+      incidentDataMap.delete(incidentId);
+    } else {
+      logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
+    }
 
   return {
     incidentId,

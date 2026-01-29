@@ -83,14 +83,45 @@ const mobileAccidentDetectedSchema = z.object({
     }).min(1, 'Longitude cannot be empty')
       .transform(val => parseFloat(val)),
     
-    severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], {
-      required_error: 'Severity must be one of: LOW, MEDIUM, HIGH, CRITICAL',
-    }),
+    occurredAt: z.string().optional(),
   }),
+  files: z.array(z.any(), {
+    required_error: 'At least one media file is required (images/videos)',
+    invalid_type_error: 'Media must be an array of files',
+  }).min(1, 'At least one media file is required (images/videos)'),
+});
+
+/**
+ * Schema for server-to-server Mobile->Central accident report
+ * Expected JSON body (application/json):
+ * {
+ *   accidentId: string,
+ *   description: string,
+ *   latitude: number,
+ *   longitude: number,
+ *   severity: string,
+ *   media: [{ type: 'image'|'video', url: string }]
+ * }
+ */
+const mobileServerToCentralSchema = z.object({
+  body: z.object({
+    accidentId: z.string().optional(),
+    description: z.string({ required_error: 'description is required' }).min(1),
+    latitude: z.number({ required_error: 'latitude is required' }).refine((v) => v >= -90 && v <= 90, { message: 'latitude must be between -90 and 90' }),
+    longitude: z.number({ required_error: 'longitude is required' }).refine((v) => v >= -180 && v <= 180, { message: 'longitude must be between -180 and 180' }),
+    severity: z.enum(['low', 'medium', 'high']).optional(),
+    // media.url may be a full URL or a server-local path (starting with '/')
+    media: z.array(z.object({
+      type: z.enum(['image', 'video']),
+      url: z.string().refine((v) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')), { message: 'url must be a full URL or an absolute path starting with /' })
+    })).optional(),
+  })
 });
 
 module.exports = {
   accidentDetectedSchema,
   accidentDecisionSchema,
   mobileAccidentDetectedSchema,
+  mobileServerToCentralSchema,
 };
+

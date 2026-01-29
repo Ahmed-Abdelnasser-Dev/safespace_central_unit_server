@@ -15,6 +15,7 @@ const AppError = require('../../utils/AppError');
 const incidentController = require('./incident.controller');
 const validate = require('../../middleware/validate');
 const { accidentDetectedSchema, accidentDecisionSchema, mobileAccidentDetectedSchema } = require('./incident.schema');
+const { mobileServerToCentralSchema } = require('./incident.schema');
 
 const router = express.Router();
 
@@ -124,8 +125,21 @@ router.post(
  */
 router.post(
   '/mobile-accident-detected',
+  // Accept media files from external mobile servers as multipart/form-data
+  upload.array('media', 10),
+  handleMulterError,
   validate(mobileAccidentDetectedSchema),
   incidentController.mobileAccidentDetected
+);
+
+/**
+ * POST /api/central-unit/send-accident-to-central-unit
+ * Receives JSON reports from Mobile App Server (server-to-server)
+ */
+router.post(
+  '/central-unit/send-accident-to-central-unit',
+  validate(mobileServerToCentralSchema),
+  incidentController.sendAccidentToCentralUnit
 );
 
 module.exports = router;
