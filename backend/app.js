@@ -14,6 +14,8 @@ const morgan = require("morgan");
 const { logger } = require("./utils/logger");
 const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
+const authRoutes = require('./modules/auth/auth.routes');
+
 
 const app = express();
 
@@ -168,6 +170,11 @@ app.get("/api/test-frontend", (req, res) => {
 // ============================================
 // Mount incident routes
 app.use("/api", require("./modules/incidents/incident.routes"));
+
+// Mount auth routes
+app.use('/api/auth', require('./modules/auth/auth.routes'));
+
+
 
 
 // ============================================
