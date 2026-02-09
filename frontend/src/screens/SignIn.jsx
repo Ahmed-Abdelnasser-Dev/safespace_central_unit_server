@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout.jsx';
+import LoginLayout from '../components/LoginLayout.jsx';
 import Button from '../components/ui/Button.jsx';
 import Checkbox from '../components/ui/Checkbox.jsx';
 
@@ -9,7 +9,7 @@ function SignIn() {
   const navigate = useNavigate();
 
   return (
-    <AuthLayout
+    <LoginLayout
       title="Sign In"
       subtitle="Access your admin dashboard"
       leftTitle={'Welcome to Accident\nPrevention System'}
@@ -109,7 +109,7 @@ function SignIn() {
           Sign In
         </Button>
       </form>
-    </AuthLayout>
+    </LoginLayout>
   );
 }
 

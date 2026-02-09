@@ -16,6 +16,8 @@ import TwoFactorAuth from './screens/TwoFactorAuth.jsx';
 import YouAreAllSet from './screens/YouAreAllSet.jsx';
 import ForgotPassword from './screens/ForgotPassword.jsx';
 import CheckYourEmail from './screens/CheckYourEmail.jsx';
+import AdminUsersManagement from './screens/AdminUsersManagement.jsx';
+import AdminActivityLogs from './screens/AdminActivityLogs.jsx';
 import './App.css';
 
 function App() {
@@ -27,12 +29,17 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/system-test" element={<SystemTest />} />
 
-        {/* Auth flow */}
+        {/* Signin */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/two-factor" element={<TwoFactorAuth />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/check-email" element={<CheckYourEmail />} />
         <Route path="/you-are-all-set" element={<YouAreAllSet />} />
+
+        {/* User Management */}
+        <Route path="/admin-user-management" element={<AdminUsersManagement />} />
+        <Route path="/admin-activity-logs" element={<AdminActivityLogs />} />
+
 
         {/* Fallback */}
         <Route path="*" element={<SignIn />} />

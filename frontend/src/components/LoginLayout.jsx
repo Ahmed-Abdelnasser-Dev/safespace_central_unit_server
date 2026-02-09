@@ -1,11 +1,11 @@
 // src/components/AuthLayout.jsx
-import AuthLeftPanel from './AuthLeftPanel.jsx';
-import AuthRightPanel from './AuthRightPanel.jsx';
+import LoginLeftPanel from './LoginLeftPanel.jsx';
+import LoginRightPanel from './LoginRightPanel.jsx';
 
 /**
  * 2-column auth layout (left hero + right form card)
  */
-function AuthLayout({
+function LoginLayout({
   children,
   title,
   subtitle,
@@ -18,7 +18,7 @@ function AuthLayout({
     <div className="min-h-screen w-full bg-safe-bg flex items-center">
       {/* Left hero */}
       <div className="w-1/2 h-[80vh] flex items-center">
-        <AuthLeftPanel
+        <LoginLeftPanel
           title={leftTitle}
           description={leftDescription}
           bullets={leftBullets}
@@ -27,12 +27,12 @@ function AuthLayout({
 
       {/* Right card – centered in its half */}
       <div className="w-1/2 h-[80vh] flex items-center justify-center px-16">
-        <AuthRightPanel icon={icon} title={title} subtitle={subtitle}>
+        <LoginRightPanel icon={icon} title={title} subtitle={subtitle}>
           {children}
-        </AuthRightPanel>
+        </LoginRightPanel>
       </div>
     </div>
   );
 }
 
-export default AuthLayout;
+export default LoginLayout;

@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout.jsx';
+import LoginLayout from '../components/LoginLayout.jsx';
 import Button from '../components/ui/Button.jsx';
 
 function CheckYourEmail() {
   const navigate = useNavigate();
 
   return (
-    <AuthLayout
+    <LoginLayout
       title="Check Your Email"
       subtitle="We’ve sent password reset instructions to"
       icon={
@@ -45,7 +45,7 @@ function CheckYourEmail() {
       >
         Back to Sign In
       </Button>
-    </AuthLayout>
+    </LoginLayout>
   );
 }
 
