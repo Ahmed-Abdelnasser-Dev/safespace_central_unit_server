@@ -17,7 +17,7 @@ function UserManagementAllUser() {
                     User Management
                 </button>
                 <button className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 text-safe-text-gray shadow-sm bg-safe-white">
-                    <Link to="/admin-activity-logs">Activity Logs</Link>
+                    <Link to="/activity-logs">Activity Logs</Link>
                 </button>
               </div>
           </div>

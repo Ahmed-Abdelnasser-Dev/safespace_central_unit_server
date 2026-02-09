@@ -1,13 +1,11 @@
-import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import UsersTable from './UsersTable';
 
 /**
- * Users Table Component
- * Displays all users with actions
+ * User Management Table
+ * Displays all users with actions using base Table component
  */
-function UserManagementTable({ onEdit, onDelete, onResetPassword, onViewDetails }) {
-  const [selectedUsers, setSelectedUsers] = useState([]);
-
+function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, onViewDetails }) {
   // Mock users data - Security: Replace with authenticated API call
   const users = [
     {
@@ -62,118 +60,134 @@ function UserManagementTable({ onEdit, onDelete, onResetPassword, onViewDetails 
     }
   ];
 
+  // Define table columns
+  const columns = [
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true
+    },
+    {
+      key: 'role',
+      label: 'Role',
+      sortable: true
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true
+    },
+    {
+      key: 'lastActive',
+      label: 'Last Active',
+      sortable: true
+    },
+    {
+      key: 'created',
+      label: 'Created',
+      sortable: true
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      stopPropagation: true,
+      headerClass: 'text-right'
+    }
+  ];
+
+  // Custom cell renderer
+  const renderCell = (user, column) => {
+    switch (column.key) {
+      case 'name':
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-semibold text-sm">
+              {user.avatar}
+            </div>
+            <div>
+              <p className="font-medium text-safe-text-dark">{user.name}</p>
+              <p className="text-xs text-safe-text-gray">{user.id}</p>
+            </div>
+          </div>
+        );
+
+      case 'role':
+        return (
+          <div className="flex items-center gap-2">
+            <FontAwesomeIcon icon="shield" className="text-sm text-safe-blue/80" />
+            <span className="text-sm text-safe-text-dark">{user.role}</span>
+          </div>
+        );
+
+      case 'status':
+        return (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
+            user.status === 'active' 
+              ? 'bg-safe-green/10 text-safe-green' 
+              : 'bg-safe-text-gray/10 text-safe-text-gray'
+          }`}>
+            {user.status}
+          </span>
+        );
+
+      case 'lastActive':
+        return (
+          <div>
+            <p className="text-sm text-safe-text-dark">{user.lastActive}</p>
+            <p className="text-xs text-safe-text-gray flex items-center gap-1 mt-0.5">
+              <FontAwesomeIcon icon="calendar-check" className="text-xs" />
+              Joined {user.joinDate}
+            </p>
+          </div>
+        );
+
+      case 'created':
+        return <span className="text-sm text-safe-text-dark">{user.joinDate}</span>;
+
+      case 'actions':
+        return (
+          <div className={`flex items-center gap-2 ${
+          column.key === 'actions' ? 'justify-end' : ''}`}>
+            <button
+              onClick={() => onEdit && onEdit(user)}
+              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => onDeactivate && onDeactivate(user)}
+              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
+            >
+              Deactivate
+            </button>
+            <button
+              onClick={() => onResetPassword && onResetPassword(user)}
+              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
+            >
+              Reset Password
+            </button>
+            <button
+              onClick={() => onDelete && onDelete(user)}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-safe-danger hover:bg-safe-danger/90 rounded-lg transition-colors"
+            >
+              Delete Account
+            </button>
+          </div>
+        );
+
+      default:
+        return user[column.key];
+    }
+  };
 
   return (
-    <div className="mt-6 bg-white rounded-xl border border-safe-border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed justify-content-between">
-          <thead className="bg-safe-bg border-b border-safe-border">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-safe-text-dark tracking-wider">
-                Name
-                <FontAwesomeIcon icon="sort" className="pl-2  text-xs text-safe-text-gray/50" />
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-bold text-safe-text-dark  tracking-wider">
-                Role
-                <FontAwesomeIcon icon="sort" className="pl-2  text-xs text-safe-text-gray/50" />
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-bold text-safe-text-dark tracking-wider">
-                Status
-                <FontAwesomeIcon icon="sort" className="pl-2  text-xs text-safe-text-gray/50" />
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-bold text-safe-text-dark  tracking-wider">
-                Last Active
-                <FontAwesomeIcon icon="sort" className="pl-2  text-xs text-safe-text-gray/50" />
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-bold text-safe-text-dark  tracking-wider">
-                Created
-                <FontAwesomeIcon icon="sort" className="pl-2  text-xs text-safe-text-gray/50" />
-              </th>
-              <th className="px-4 py-4 text-left ml-auto text-xs font-bold text-safe-text-dark tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-safe-border">
-            {users.map((user) => (
-                <tr 
-                    key={user.id} 
-                    className="hover:bg-safe-bg/30 transition-colors"
-                    onClick={() => onViewDetails && onViewDetails(user)}
-                >
-
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-semibold text-sm">
-                      {user.avatar}
-                    </div>
-                    <div>
-                      <p className="font-medium text-safe-text-dark">{user.name}</p>
-                      <p className="text-xs text-safe-text-gray">{user.id}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon="shield" className="text-sm text-safe-blue/80" />
-                    <span className="text-sm text-safe-text-dark">{user.role}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
-                    user.status === 'active' 
-                      ? 'bg-safe-green/10 text-safe-green' 
-                      : 'bg-safe-text-gray/10 text-safe-text-gray'
-                  }`}>
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-4 py-4">
-                  <div>
-                    <p className="text-sm text-safe-text-dark">{user.lastActive}</p>
-                    <p className="text-xs text-safe-text-gray flex items-center gap-1 mt-0.5">
-                      <FontAwesomeIcon icon="calendar-check" className="regular text-xs" />
-                      Joined {user.joinDate}
-                    </p>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <span className="text-sm text-safe-text-dark">{user.joinDate}</span>
-                </td>
-                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center ml-auto gap-2">
-                    <button
-                      onClick={() => onEdit && onEdit(user)}
-                      className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-bg rounded-lg transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onEdit && onDeactivate(user)}
-                      className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-bg rounded-lg transition-colors"
-                    >
-                      Deactivate
-                    </button>
-                    <button
-                      onClick={() => onResetPassword && onResetPassword(user)}
-                      className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-bg rounded-lg transition-colors"
-                    >
-                      Reset Password 
-                    </button>
-                    <button
-                      onClick={() => onDelete && onDelete(user)}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-safe-danger hover:bg-safe-danger/90 rounded-lg transition-colors"
-                    >
-                      Delete Account
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <UsersTable
+      columns={columns}
+      data={users}
+      onRowClick={onViewDetails}
+      renderCell={renderCell}
+    />
   );
 }
 
