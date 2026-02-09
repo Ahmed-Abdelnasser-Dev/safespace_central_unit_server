@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import UsersTable from './UsersTable';
+import UsersTable from './ui/UsersTable';
 
 /**
  * User Management Table
