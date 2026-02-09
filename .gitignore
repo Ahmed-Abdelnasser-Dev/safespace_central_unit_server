@@ -13,7 +13,6 @@ pnpm-debug.log*
 dist/
 build/
 out/
-*.log
 
 # =========================
 # Environment files
@@ -37,7 +36,22 @@ out/
 Thumbs.db
 
 # =========================
-# Optional caches
+# Logs & caches
 # =========================
+logs/
+*.log
 .cache/
 .tmp/
+
+# =========================
+# Backup & temporary files
+# =========================
+*.bak
+*.swp
+*.swo
+
+# =========================
+# Node.js / TypeScript specific
+# =========================
+*.tsbuildinfo
+coverage/

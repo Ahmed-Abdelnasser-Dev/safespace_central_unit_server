@@ -1,0 +1,100 @@
+/**
+ * Node Configuration Tab Screen
+ * 
+ * Configure camera, network, and detection parameters
+ * 
+ * @component
+ */
+
+import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectSelectedNode, updateNodeSpecs } from '../nodesSlice';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import SectionLabel from '../components/forms/SectionLabel';
+import ConfigCard from '../components/cards/ConfigCard';
+import FormField from '../components/forms/FormField';
+import PrimaryButton from '../components/forms/PrimaryButton';
+import { typography, fontFamily } from '../styles/typography';
+
+function NodeConfigTab() {
+  const dispatch = useDispatch();
+  const node = useSelector(selectSelectedNode);
+  const [specs, setSpecs] = useState(node?.nodeSpecs || {});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  if (!node) return <div>Select a node</div>;
+
+  const handleInputChange = (key, value) => {
+    setSpecs(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+  };
+
+  const handleSaveConfig = () => {
+    dispatch(updateNodeSpecs({
+      nodeId: node.id,
+      specs,
+    }));
+    setHasChanges(false);
+  };
+
+  const configSections = [
+    {
+      title: 'Camera Settings',
+      icon: 'camera',
+      fields: [
+        { label: 'Resolution', key: 'cameraResolution', type: 'text' },
+        { label: 'Frame Rate (FPS)', key: 'frameRate', type: 'number', min: 1, max: 120 },
+      ],
+    },
+    {
+      title: 'Network Settings',
+      icon: 'wifi',
+      fields: [
+        { label: 'IP Address', key: 'ipAddress', type: 'text' },
+        { label: 'Bandwidth', key: 'bandwidth', type: 'text' },
+      ],
+    },
+    {
+      title: 'Detection Parameters',
+      icon: 'crosshairs',
+      fields: [
+        { label: 'Sensitivity (%)', key: 'detectionSensitivity', type: 'number', min: 0, max: 100 },
+        { label: 'Min Object Size (px)', key: 'minObjectSize', type: 'number', min: 10, max: 500 },
+      ],
+    },
+  ];
+
+  return (
+    <div className="p-[20px] space-y-[20px]">
+      {configSections.map(section => (
+        <div key={section.title} className="space-y-[12px]">
+          <SectionLabel text={section.title} icon={section.icon} />
+
+          <ConfigCard>
+            {section.fields.map(field => (
+              <FormField
+                key={field.key}
+                label={field.label}
+                value={specs[field.key] || (field.type === 'number' ? 0 : '')}
+                onChange={(value) => handleInputChange(field.key, value)}
+                type={field.type}
+                min={field.min}
+                max={field.max}
+              />
+            ))}
+          </ConfigCard>
+        </div>
+      ))}
+
+      {/* Save Button */}
+      <PrimaryButton
+        onClick={handleSaveConfig}
+        disabled={!hasChanges}
+        icon="floppy-disk"
+        text="Save Configuration"
+      />
+    </div>
+  );
+}
+
+export default NodeConfigTab;
