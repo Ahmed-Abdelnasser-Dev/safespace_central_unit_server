@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
  * Edit User Modal
  * Security: Validates permissions before allowing edits
  */
-function EditUserModal({ isOpen, onClose, onSubmit, userData }) {
+function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData }) {
   const [formData, setFormData] = useState({
     userId: '',
     email: '',
@@ -223,4 +223,4 @@ function EditUserModal({ isOpen, onClose, onSubmit, userData }) {
   );
 }
 
-export default EditUserModal;
+export default EditAccountInfoModal;

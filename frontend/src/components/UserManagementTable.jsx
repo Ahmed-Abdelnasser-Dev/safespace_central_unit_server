@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import UsersTable from './ui/UsersTable';
-import EditUserModal from './EditUserModal';
+import EditAccountInfoModal from './EditAccountInfoModal';
 
 /**
  * User Management Table
@@ -210,7 +210,7 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
         onRowClick={onViewDetails}
         renderCell={renderCell}
       />
-      <EditUserModal
+      <EditAccountInfoModal
         isOpen={isModalOpen}
         userData={selectedUser}
         onClose={handleModalClose}

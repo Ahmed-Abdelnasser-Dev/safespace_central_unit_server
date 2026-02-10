@@ -18,6 +18,7 @@ import ForgotPassword from './screens/ForgotPassword.jsx';
 import CheckYourEmail from './screens/CheckYourEmail.jsx';
 import UsersManagement from './screens/UsersManagement.jsx';
 import ActivityLogs from './screens/ActivityLogs.jsx';
+import UserProfile from './screens/UserProfile.jsx';
 import './App.css';
 
 function App() {
@@ -39,6 +40,9 @@ function App() {
         {/* User Management */}
         <Route path="/user-management" element={<UsersManagement />} />
         <Route path="/activity-logs" element={<ActivityLogs />} />
+
+        {/* User Profile */}
+        <Route path="/profile" element={<UserProfile />} />
 
 
         {/* Fallback */}
