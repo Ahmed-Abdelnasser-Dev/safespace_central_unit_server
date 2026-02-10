@@ -19,18 +19,26 @@ import CheckYourEmail from './screens/CheckYourEmail.jsx';
 import UsersManagement from './screens/UsersManagement.jsx';
 import ActivityLogs from './screens/ActivityLogs.jsx';
 import UserProfile from './screens/UserProfile.jsx';
+import NodeMaintainerDashboard from './screens/NodeMaintainerDashboard.jsx';
 import './App.css';
 
 function App() {
+  // In development mode, allow direct access to node-maintainer without auth
+  const isDev = import.meta.env.DEV;
+
   return (
     <BrowserRouter>
       <Routes>
+        {/* Development: Direct access to Node Maintainer */}
+        {isDev && <Route path="/node-maintainer" element={<NodeMaintainerDashboard />} />}
+
         {/* Main app */}
         <Route path="/" element={<MapOverview />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/system-test" element={<SystemTest />} />
+        {!isDev && <Route path="/node-maintainer" element={<NodeMaintainerDashboard />} />}
 
-        {/* Signin */}
+        {/* Auth flow */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/two-factor" element={<TwoFactorAuth />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

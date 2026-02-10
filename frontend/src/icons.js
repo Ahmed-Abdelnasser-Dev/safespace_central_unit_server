@@ -7,6 +7,10 @@ import {
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus,
   faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
   faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
+  faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
+  faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -17,4 +21,8 @@ library.add(
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus, 
   faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
   faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
+  faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
+  faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
 );
