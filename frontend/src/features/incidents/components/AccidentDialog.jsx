@@ -6,6 +6,7 @@ import Button from '../../../components/ui/Button.jsx';
 import Tag from '../../../components/ui/Tag.jsx';
 import ActionCard from './ActionCard.jsx';
 import { confirmAccident, rejectAccident } from '../services/incidentDecisionService.js';
+import { emitAdminAccidentResponse } from '../../../services/socketService.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect } from 'react';
 
@@ -19,6 +20,10 @@ import { useEffect } from 'react';
  */
 function AccidentDialog({ open, onClose, incident, onDecision }) {
   const [selected, setSelected] = useState(['reduce-speed', 'block-routes', 'call-emergency']);
+  const [speedLimit, setSpeedLimit] = useState(incident?.speedLimit || 40);
+  // Always use 3 lanes for the road
+  const [laneStates, setLaneStates] = useState(['up', 'up', 'up']);
+  const [isAccident, setIsAccident] = useState(true);
 
   const actions = useMemo(() => ([
     { id: 'reduce-speed', title: 'Reduce Speed Limit', description: 'Set speed limit to 40 km/h in surrounding area' },
@@ -33,9 +38,15 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
   const handleConfirm = async () => {
     try {
       const incidentId = incident?.incidentId || '';
-      const nodeId = incident?.nodeId || 0;
-      const res = await confirmAccident(incidentId, nodeId, selected);
-      onDecision?.(res.decision);
+      const response = {
+        isAccident: true,
+        incidentId,
+        speedLimit: Number(speedLimit),
+        laneStates,
+        timestamp: new Date().toISOString(),
+      };
+      emitAdminAccidentResponse(response);
+      onDecision?.(response);
     } catch (e) {
       console.error('Confirm error', e);
     } finally {
@@ -46,9 +57,13 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
   const handleCancel = async () => {
     try {
       const incidentId = incident?.incidentId || '';
-      const nodeId = incident?.nodeId || 0;
-      const res = await rejectAccident(incidentId, nodeId);
-      onDecision?.(res.decision);
+      const response = {
+        isAccident: false,
+        incidentId,
+        timestamp: new Date().toISOString(),
+      };
+      emitAdminAccidentResponse(response);
+      onDecision?.(response);
     } catch (e) {
       console.error('Reject error', e);
     } finally {
@@ -130,6 +145,35 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
           </div>
         </div>
 
+        {/* Admin Controls */}
+        <div className="px-8 pb-4 flex flex-col gap-4">
+          <div className="flex gap-6 items-center">
+            <label className="font-medium text-sm">Speed Limit (if confirmed):</label>
+            <input type="number" min="0" max="200" value={speedLimit} onChange={e => setSpeedLimit(e.target.value)} className="border rounded px-2 py-1 w-20" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="font-medium text-sm mb-1">Lane States (set each lane):</label>
+            {[0, 1, 2].map((idx) => (
+              <div key={idx} className="flex gap-3 items-center">
+                <span className="w-24 inline-block">Lane {idx + 1}</span>
+                <select
+                  value={laneStates[idx] || 'up'}
+                  onChange={e => {
+                    const newStates = [...laneStates];
+                    newStates[idx] = e.target.value;
+                    setLaneStates(newStates);
+                  }}
+                  className="border rounded px-2 py-1"
+                >
+                  <option value="up">Up</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
         {/* Footer */}
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCancel}>Cancel</Button>

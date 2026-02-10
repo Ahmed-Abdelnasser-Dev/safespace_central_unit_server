@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout.jsx';
+import LoginLayout from '../components/LoginLayout.jsx';
 import Button from '../components/ui/Button.jsx';
 
 function TwoFactorAuth() {
@@ -40,7 +40,7 @@ function TwoFactorAuth() {
   };
 
   return (
-    <AuthLayout
+    <LoginLayout
       title="Two-Factor Authentication"
       subtitle="Enter the 6-digit code sent to"
       icon={
@@ -112,7 +112,7 @@ function TwoFactorAuth() {
           </Link>
         </p>
       </div>
-    </AuthLayout>
+    </LoginLayout>
   );
 }
 

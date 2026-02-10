@@ -18,23 +18,27 @@ const accidentDetectedSchema = z.object({
     lat: z.string({
       required_error: 'Latitude is required',
     }).min(1, 'Latitude cannot be empty'),
-    
+
     long: z.string({
       required_error: 'Longitude is required',
     }).min(1, 'Longitude cannot be empty'),
-    
+
     lanNumber: z.string({
       required_error: 'Lane number is required',
     }).refine((val) => !isNaN(parseInt(val, 10)), {
       message: 'lanNumber must be a valid integer',
     }),
-    
+
     nodeId: z.string({
       required_error: 'Node ID is required',
     }).refine((val) => !isNaN(parseInt(val, 10)), {
       message: 'nodeId must be a valid integer',
     }),
   }),
+  files: z.array(z.any(), {
+    required_error: 'At least one media file is required (images/videos)',
+    invalid_type_error: 'Media must be an array of files',
+  }).min(1, 'At least one media file is required (images/videos)'),
 });
 
 /**
@@ -59,7 +63,65 @@ const accidentDecisionSchema = z.object({
   }),
 });
 
+/**
+ * Schema for mobile/external accident report endpoint
+ * Accepts reports from external servers without multipart uploads
+ */
+const mobileAccidentDetectedSchema = z.object({
+  body: z.object({
+    description: z.string({
+      required_error: 'Description is required',
+    }).min(1, 'Description cannot be empty'),
+    
+    latitude: z.string({
+      required_error: 'Latitude is required',
+    }).min(1, 'Latitude cannot be empty')
+      .transform(val => parseFloat(val)),
+    
+    longitude: z.string({
+      required_error: 'Longitude is required',
+    }).min(1, 'Longitude cannot be empty')
+      .transform(val => parseFloat(val)),
+    
+    occurredAt: z.string().optional(),
+  }),
+  files: z.array(z.any(), {
+    required_error: 'At least one media file is required (images/videos)',
+    invalid_type_error: 'Media must be an array of files',
+  }).min(1, 'At least one media file is required (images/videos)'),
+});
+
+/**
+ * Schema for server-to-server Mobile->Central accident report
+ * Expected JSON body (application/json):
+ * {
+ *   accidentId: string,
+ *   description: string,
+ *   latitude: number,
+ *   longitude: number,
+ *   severity: string,
+ *   media: [{ type: 'image'|'video', url: string }]
+ * }
+ */
+const mobileServerToCentralSchema = z.object({
+  body: z.object({
+    accidentId: z.string().optional(),
+    description: z.string({ required_error: 'description is required' }).min(1),
+    latitude: z.number({ required_error: 'latitude is required' }).refine((v) => v >= -90 && v <= 90, { message: 'latitude must be between -90 and 90' }),
+    longitude: z.number({ required_error: 'longitude is required' }).refine((v) => v >= -180 && v <= 180, { message: 'longitude must be between -180 and 180' }),
+    severity: z.enum(['low', 'medium', 'high']).optional(),
+    // media.url may be a full URL or a server-local path (starting with '/')
+    media: z.array(z.object({
+      type: z.enum(['image', 'video']),
+      url: z.string().refine((v) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')), { message: 'url must be a full URL or an absolute path starting with /' })
+    })).optional(),
+  })
+});
+
 module.exports = {
   accidentDetectedSchema,
   accidentDecisionSchema,
+  mobileAccidentDetectedSchema,
+  mobileServerToCentralSchema,
 };
+

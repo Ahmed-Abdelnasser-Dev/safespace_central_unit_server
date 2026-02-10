@@ -53,6 +53,51 @@ app.set('io', io);
 io.on('connection', (socket) => {
   logger.info(`Dashboard client connected: ${socket.id}`);
 
+  // Listen for admin accident response from dashboard
+  socket.on('admin_accident_response', async (data) => {
+    try {
+      // Validate required fields
+      if (!data || typeof data !== 'object' || !data.incidentId) {
+        logger.warn('Invalid admin_accident_response payload received');
+        return;
+      }
+      // Always add timestamp if not present
+      if (!data.timestamp) {
+        data.timestamp = new Date().toISOString();
+      }
+      // Log and relay to node (broadcast or emit to specific node if needed)
+      logger.info(`Relaying admin_accident_response for incident ${data.incidentId}: ${JSON.stringify(data)}`);
+      // For now, broadcast to all connected nodes (customize as needed)
+      io.emit('admin_accident_response', data);
+
+      // After relaying, process the admin decision (triggers Mobile App Server notification)
+      const { incidentId, nodeId, isAccident, speedLimit, laneStates, timestamp } = data;
+      if (isAccident) {
+        // Use the same logic as the REST endpoint for confirmed accidents
+        const incidentService = require('./modules/incidents/incident.service');
+        await incidentService.processAccidentDecision({
+          incidentId,
+          nodeId,
+          status: 'CONFIRMED',
+          actions: [], // You can map laneStates/speedLimit to actions if needed
+          message: 'Confirmed via dashboard',
+        });
+      } else {
+        // Optionally handle rejection
+        const incidentService = require('./modules/incidents/incident.service');
+        await incidentService.processAccidentDecision({
+          incidentId,
+          nodeId,
+          status: 'REJECTED',
+          actions: [],
+          message: 'Rejected via dashboard',
+        });
+      }
+    } catch (err) {
+      logger.error('Error handling admin_accident_response:', err);
+    }
+  });
+
   socket.on('disconnect', () => {
     logger.info(`Dashboard client disconnected: ${socket.id}`);
   });

@@ -4,7 +4,13 @@ import {
   faPhone, faVideo, faTrafficLight, faLocationCrosshairs, faMicrochip, faChartSimple,
   faMagnifyingGlass, faRotate, faShield, faMapPin, faPlus, faMinus, faExpand,
   faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle, faEnvelope, 
-  faLock, faEye, faShieldHalved, faCheck, faCheckCircle
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus,
+  faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
+  faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
+  faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
+  faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -12,5 +18,11 @@ library.add(
   faPhone, faVideo, faTrafficLight, faLocationCrosshairs, faMicrochip, faChartSimple,
   faMagnifyingGlass, faRotate, faShield, faMapPin, faPlus, faMinus, faExpand,
   faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle , faEnvelope,
-  faLock, faEye, faShieldHalved, faCheck, faCheckCircle
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus, 
+  faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
+  faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
+  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
+  faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
+  faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
 );

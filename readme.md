@@ -45,3 +45,5 @@ npm run dev
 
 ---
 This structure emphasizes scalability and ease of extension for future monitoring panels.
+
+klam fady

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout.jsx';
+import LoginLayout from '../components/LoginLayout.jsx';
 import Button from '../components/ui/Button.jsx';
 
 function ForgotPassword() {
@@ -8,7 +8,7 @@ function ForgotPassword() {
   const navigate = useNavigate();
 
   return (
-    <AuthLayout
+    <LoginLayout
       title="Forgot Password?"
       subtitle="Enter your email and we’ll send you instructions to reset your password"
       leftTitle={'Account Recovery'}
@@ -61,7 +61,7 @@ function ForgotPassword() {
           <span>Back to Sign In</span>
         </Link>
       </div>
-    </AuthLayout>
+    </LoginLayout>
   );
 }
 

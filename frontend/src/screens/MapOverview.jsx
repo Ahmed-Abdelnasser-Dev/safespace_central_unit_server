@@ -19,8 +19,11 @@ function MapOverview() {
     // Listen for real-time accident events
     const handleAccident = (incidentData) => {
       console.log('🚨 New accident detected:', incidentData);
-      setCurrentIncident(incidentData);
-      setShowAccident(true);
+      // Only show dialog if this is a new incident
+      if (!currentIncident || incidentData.incidentId !== currentIncident.incidentId) {
+        setCurrentIncident(incidentData);
+        setShowAccident(true);
+      }
     };
 
     onAccidentDetected(handleAccident);
@@ -29,7 +32,8 @@ function MapOverview() {
     return () => {
       offAccidentDetected(handleAccident);
     };
-  }, []);
+    // Add currentIncident to dependencies to always check for duplicates
+  }, [currentIncident]);
 
   return (
     <div className="flex h-screen bg-safe-bg overflow-hidden">

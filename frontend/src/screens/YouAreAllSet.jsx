@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout.jsx';
+import LoginLayout from '../components/LoginLayout.jsx';
 
 function YouAreAllSet() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ function YouAreAllSet() {
   }, [navigate]);
 
  return (
-  <AuthLayout
+  <LoginLayout
   title="Welcome Back!"
   subtitle="You have successfully signed in to"
   icon={
@@ -49,7 +49,7 @@ function YouAreAllSet() {
       <li className="marker:text-safe-blue-btn">Password Reset</li>
     </ul>
   </div>
-</AuthLayout>
+</LoginLayout>
 );
 }
 
