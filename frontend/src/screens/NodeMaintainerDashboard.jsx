@@ -12,7 +12,14 @@
 
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectSelectedNode, selectCurrentTab, setCurrentTab } from '../features/nodeMaintainer/nodesSlice';
+import {
+  addNode,
+  selectAllNodes,
+  selectNode,
+  selectSelectedNode,
+  selectCurrentTab,
+  setCurrentTab,
+} from '../features/nodeMaintainer/nodesSlice';
 import NodeMaintainerSidebar from '../features/nodeMaintainer/components/NodeMaintainerSidebar.jsx';
 import NodeMaintainerHeader from '../features/nodeMaintainer/components/NodeMaintainerHeader.jsx';
 import NetworkMapCard from '../features/nodeMaintainer/components/cards/NetworkMapCard.jsx';
@@ -24,13 +31,27 @@ import HealthTab from '../features/nodeMaintainer/screens/HealthTab.jsx';
 import PolygonsTab from '../features/nodeMaintainer/screens/PolygonsTab.jsx';
 import PolygonEditorDialog from '../features/nodeMaintainer/components/PolygonEditorDialog.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import Button from '../components/ui/Button.jsx';
+import Modal from '../components/ui/Modal.jsx';
+import Input from '../components/ui/Input.jsx';
 
 export default function NodeMaintainerDashboard() {
   const dispatch = useDispatch();
+  const nodes = useSelector(selectAllNodes);
   const selectedNode = useSelector(selectSelectedNode);
   const currentTab = useSelector(selectCurrentTab);
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
   const [editingPolygon, setEditingPolygon] = useState(null);
+  const [showAddNodeModal, setShowAddNodeModal] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [newNode, setNewNode] = useState({
+    id: '',
+    address: '',
+    latitude: '',
+    longitude: '',
+    speedLimit: '',
+    ipAddress: '',
+  });
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'eye' },
@@ -63,6 +84,97 @@ export default function NodeMaintainerDashboard() {
     }
   };
 
+  const updateNewNodeField = (field) => (event) => {
+    setNewNode((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const resetNewNodeForm = () => {
+    setNewNode({
+      id: '',
+      address: '',
+      latitude: '',
+      longitude: '',
+      speedLimit: '',
+      ipAddress: '',
+    });
+    setFormError('');
+  };
+
+  const handleCreateNode = () => {
+    const trimmedId = newNode.id.trim();
+    const trimmedAddress = newNode.address.trim();
+    const lat = Number(newNode.latitude);
+    const lon = Number(newNode.longitude);
+    const speedLimit = Number(newNode.speedLimit) || 80;
+
+    if (!trimmedId) {
+      setFormError('Node ID is required.');
+      return;
+    }
+
+    if (nodes.some((node) => node.id.toLowerCase() === trimmedId.toLowerCase())) {
+      setFormError('Node ID already exists.');
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setFormError('Location address is required.');
+      return;
+    }
+
+    if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+      setFormError('Latitude must be between -90 and 90.');
+      return;
+    }
+
+    if (Number.isNaN(lon) || lon < -180 || lon > 180) {
+      setFormError('Longitude must be between -180 and 180.');
+      return;
+    }
+
+    const nodePayload = {
+      id: trimmedId,
+      name: trimmedId,
+      status: 'offline',
+      location: {
+        latitude: lat,
+        longitude: lon,
+        address: trimmedAddress,
+      },
+      roadRules: {
+        lanes: [
+          { id: 1, name: 'Lane 1', type: 'Main Lane', status: 'open' },
+        ],
+        speedLimit,
+      },
+      nodeSpecs: {
+        cameraResolution: '1920x1080',
+        frameRate: 30,
+        ipAddress: newNode.ipAddress.trim() || '192.168.1.200',
+        bandwidth: '100 Mbps',
+        detectionSensitivity: 70,
+        minObjectSize: 50,
+      },
+      health: {
+        cpu: 0,
+        temperature: 0,
+        memory: 0,
+        network: 0,
+        storage: 0,
+        currentFps: 0,
+      },
+      lanePolygons: [],
+      lastHeartbeat: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+    };
+
+    dispatch(addNode(nodePayload));
+    dispatch(selectNode(trimmedId));
+    dispatch(setCurrentTab('nodeConfig'));
+    setShowAddNodeModal(false);
+    resetNewNodeForm();
+  };
+
   return (
     <div 
       className="flex h-screen w-full overflow-hidden"
@@ -76,7 +188,7 @@ export default function NodeMaintainerDashboard() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <NodeMaintainerHeader />
+        <NodeMaintainerHeader onAddNode={() => setShowAddNodeModal(true)} />
 
         {/* Content Area - Responsive Layout */}
         <div className="flex gap-[12px] lg:gap-[16px] xl:gap-[20px] px-[12px] lg:px-[16px] xl:px-[20px] py-[12px] lg:py-[16px] xl:py-[20px] overflow-hidden flex-1 h-full">
@@ -193,6 +305,56 @@ export default function NodeMaintainerDashboard() {
           }}
         />
       )}
+
+      <Modal open={showAddNodeModal} onClose={() => { setShowAddNodeModal(false); resetNewNodeForm(); }} size="md">
+        <div className="bg-white rounded-xl border border-safe-border shadow-lg overflow-hidden">
+          <div className="px-8 py-6">
+            <h3 className="text-safe-text-dark font-bold text-xl">Add New Node</h3>
+            <p className="text-safe-text-gray text-sm mt-1">Create a node and jump to configuration.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-safe-text-dark">Node ID</label>
+                <Input value={newNode.id} onChange={updateNewNodeField('id')} placeholder="NODE-006" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-safe-text-dark">IP Address</label>
+                <Input value={newNode.ipAddress} onChange={updateNewNodeField('ipAddress')} placeholder="192.168.1.200" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-semibold text-safe-text-dark">Location Address</label>
+                <Input value={newNode.address} onChange={updateNewNodeField('address')} placeholder="Highway A1, Exit 23B" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-safe-text-dark">Latitude</label>
+                <Input value={newNode.latitude} onChange={updateNewNodeField('latitude')} placeholder="40.7128" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-safe-text-dark">Longitude</label>
+                <Input value={newNode.longitude} onChange={updateNewNodeField('longitude')} placeholder="-74.0060" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-safe-text-dark">Speed Limit (km/h)</label>
+                <Input value={newNode.speedLimit} onChange={updateNewNodeField('speedLimit')} placeholder="80" />
+              </div>
+            </div>
+
+            {formError && (
+              <div className="mt-4 rounded-lg bg-safe-danger/10 border border-safe-danger/20 px-4 py-3 text-safe-danger text-sm">
+                {formError}
+              </div>
+            )}
+          </div>
+          <Modal.Footer>
+            <Button variant="ghost" size="sm" onClick={() => { setShowAddNodeModal(false); resetNewNodeForm(); }}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleCreateNode}>
+              Create and Configure
+            </Button>
+          </Modal.Footer>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -234,6 +234,10 @@ const nodesSlice = createSlice({
       state.currentTab = action.payload;
     },
 
+    addNode(state, action) {
+      state.nodes.unshift(action.payload);
+    },
+
     updateNodeRoadRules(state, action) {
       const { nodeId, roadRules } = action.payload;
       const node = state.nodes.find(n => n.id === nodeId);
@@ -247,6 +251,15 @@ const nodesSlice = createSlice({
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
         node.nodeSpecs = { ...node.nodeSpecs, ...specs };
+      }
+    },
+
+    updateNodeStatus(state, action) {
+      const { nodeId, status } = action.payload;
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (node) {
+        node.status = status;
+        node.lastUpdate = new Date().toISOString();
       }
     },
 
@@ -325,8 +338,10 @@ const nodesSlice = createSlice({
 export const {
   selectNode,
   setCurrentTab,
+  addNode,
   updateNodeRoadRules,
   updateNodeSpecs,
+  updateNodeStatus,
   updateLaneStatus,
   addLane,
   removeLane,

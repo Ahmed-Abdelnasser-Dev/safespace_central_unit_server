@@ -12,8 +12,9 @@
 
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import Button from '../../../components/ui/Button.jsx';
 
-export default function NodeMaintainerHeader() {
+export default function NodeMaintainerHeader({ onAddNode }) {
   return (
     <div className="bg-white border-b border-[#e5e7eb] w-full">
       <div className="flex items-center justify-between py-[10px] px-[20px]">
@@ -35,6 +36,17 @@ export default function NodeMaintainerHeader() {
 
         {/* Controls */}
         <div className="flex items-center gap-[20px]">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onAddNode}
+            className="h-[41.29px] px-[14px]"
+          >
+            <span className="flex items-center gap-[8px]">
+              <FontAwesomeIcon icon="plus" style={{ width: '14px', height: '14px' }} />
+              Add Node
+            </span>
+          </Button>
           {/* Search Bar */}
           <div className="relative group">
             <div 
