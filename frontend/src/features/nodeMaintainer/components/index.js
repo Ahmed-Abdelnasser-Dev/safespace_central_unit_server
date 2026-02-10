@@ -33,6 +33,9 @@ export * from './sections';
 // UI Components
 export * from './ui';
 
+// Map Components
+export * from './map';
+
 // Root-Level Domain Components (not categorized)
 export { default as NodeMaintainerHeader } from './NodeMaintainerHeader';
 export { default as NodeMaintainerSidebar } from './NodeMaintainerSidebar';

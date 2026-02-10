@@ -171,6 +171,9 @@ app.get("/api/test-frontend", (req, res) => {
 // Mount incident routes
 app.use("/api", require("./modules/incidents/incident.routes"));
 
+// Mount node routes
+app.use("/api/nodes", require("./modules/nodes/node.routes"));
+
 // Mount auth routes
 // app.use('/api/auth', require('./modules/auth/auth.routes'));
 

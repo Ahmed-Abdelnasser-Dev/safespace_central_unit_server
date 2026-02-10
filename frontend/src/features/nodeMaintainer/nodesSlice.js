@@ -7,219 +7,100 @@
  * @module features/nodeMaintainer/nodesSlice
  */
 
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import axios from 'axios';
 
 const initialState = {
-  nodes: [
-    {
-      id: 'NODE-001',
-      name: 'NODE-001',
-      status: 'online',
-      location: {
-        latitude: 40.7128,
-        longitude: -74.0060,
-        address: 'Interstate 95, Mile Marker 145',
-      },
-      roadRules: {
-        lanes: [
-          {
-            id: 1,
-            name: 'Lane 1',
-            type: 'Fast Lane',
-            status: 'open', // 'open', 'blocked', 'right', 'left'
-          },
-          {
-            id: 2,
-            name: 'Lane 2',
-            type: 'Middle Lane',
-            status: 'right',
-          },
-          {
-            id: 3,
-            name: 'Lane 3',
-            type: 'Slow Lane',
-            status: 'left',
-          },
-        ],
-        speedLimit: 120,
-      },
-      nodeSpecs: {
-        cameraResolution: '1920x1080',
-        frameRate: 30,
-        ipAddress: '192.168.1.101',
-        bandwidth: '100 Mbps',
-        detectionSensitivity: 75,
-        minObjectSize: 50,
-      },
-      health: {
-        cpu: 35,
-        temperature: 42,
-        memory: 62,
-        network: 98,
-        storage: 62,
-        currentFps: 30,
-      },
-      lanePolygons: [
-        {
-          id: 'poly-1',
-          name: 'Lane 1',
-          type: 'lane',
-          points: [[40.7128, -74.0060], [40.7129, -74.0061], [40.7130, -74.0062]],
-        },
-        {
-          id: 'poly-2',
-          name: 'Lane 2',
-          type: 'lane',
-          points: [[40.7128, -74.0062], [40.7129, -74.0063], [40.7130, -74.0064]],
-        },
-      ],
-      lastHeartbeat: '2024-01-15T10:30:00Z',
-      lastUpdate: new Date().toISOString(),
-    },
-    {
-      id: 'NODE-002',
-      name: 'NODE-002',
-      status: 'online',
-      location: {
-        latitude: 40.7200,
-        longitude: -74.0100,
-        address: 'Interstate 95, Mile 47',
-      },
-      roadRules: {
-        lanes: [
-          {
-            id: 1,
-            name: 'Lane 1',
-            type: 'Fast Lane',
-            status: 'open',
-          },
-          {
-            id: 2,
-            name: 'Lane 2',
-            type: 'Middle Lane',
-            status: 'blocked',
-          },
-        ],
-        speedLimit: 100,
-      },
-      nodeSpecs: {
-        cameraResolution: '1920x1080',
-        frameRate: 30,
-        ipAddress: '192.168.1.102',
-        bandwidth: '100 Mbps',
-        detectionSensitivity: 80,
-        minObjectSize: 50,
-      },
-      health: {
-        cpu: 45,
-        temperature: 48,
-        memory: 55,
-        network: 92,
-        storage: 58,
-        currentFps: 28,
-      },
-      lanePolygons: [],
-      lastHeartbeat: '2024-01-15T10:15:00Z',
-      lastUpdate: new Date().toISOString(),
-    },
-    {
-      id: 'NODE-003',
-      name: 'NODE-003',
-      status: 'offline',
-      location: {
-        latitude: 40.7300,
-        longitude: -73.9950,
-        address: 'Route 1, Section 4',
-      },
-      roadRules: {
-        lanes: [
-          {
-            id: 1,
-            name: 'Lane 1',
-            type: 'Single Lane',
-            status: 'blocked',
-          },
-        ],
-        speedLimit: 80,
-      },
-      nodeSpecs: {
-        cameraResolution: '1280x720',
-        frameRate: 15,
-        ipAddress: '192.168.1.103',
-        bandwidth: '50 Mbps',
-        detectionSensitivity: 60,
-        minObjectSize: 100,
-      },
-      health: {
-        cpu: 20,
-        temperature: 35,
-        memory: 40,
-        network: 0,
-        storage: 75,
-        currentFps: 0,
-      },
-      lanePolygons: [],
-      lastHeartbeat: '2024-01-14T18:45:00Z',
-      lastUpdate: new Date().toISOString(),
-    },
-    {
-      id: 'NODE-005',
-      name: 'NODE-005',
-      status: 'online',
-      location: {
-        latitude: 40.7400,
-        longitude: -74.0200,
-        address: 'Highway A1, Exit 23B',
-      },
-      roadRules: {
-        lanes: [
-          {
-            id: 1,
-            name: 'Lane 1',
-            type: 'Exit Lane',
-            status: 'right',
-          },
-          {
-            id: 2,
-            name: 'Lane 2',
-            type: 'Main Lane',
-            status: 'open',
-          },
-          {
-            id: 3,
-            name: 'Lane 3',
-            type: 'Entry Lane',
-            status: 'left',
-          },
-        ],
-        speedLimit: 100,
-      },
-      nodeSpecs: {
-        cameraResolution: '1920x1080',
-        frameRate: 30,
-        ipAddress: '192.168.1.105',
-        bandwidth: '100 Mbps',
-        detectionSensitivity: 75,
-        minObjectSize: 50,
-      },
-      health: {
-        cpu: 28,
-        temperature: 40,
-        memory: 50,
-        network: 95,
-        storage: 45,
-        currentFps: 30,
-      },
-      lanePolygons: [],
-      lastHeartbeat: '2024-01-15T10:25:00Z',
-      lastUpdate: new Date().toISOString(),
-    },
-  ],
-  selectedNodeId: 'NODE-001',
+  nodes: [],
+  selectedNodeId: null,
   currentTab: 'overview', // 'overview', 'roadConfig', 'nodeConfig', 'health', 'polygons'
   isLoading: false,
   error: null,
 };
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const normalizeNode = (node) => {
+  const nodeId = node.nodeId || node.id;
+  return {
+    id: nodeId,
+    name: node.name || nodeId,
+    status: node.status || 'offline',
+    location: node.location || {
+      latitude: 0,
+      longitude: 0,
+      address: 'Unknown location',
+    },
+    roadRules: node.roadRules || { lanes: [], speedLimit: 0 },
+    nodeSpecs: node.nodeSpecs || {},
+    health: node.health || {
+      cpu: 0,
+      temperature: 0,
+      memory: 0,
+      network: 0,
+      storage: 0,
+      currentFps: 0,
+    },
+    lanePolygons: node.lanePolygons || [],
+    uptimeSec: node.uptimeSec || 0,
+    firmwareVersion: node.firmwareVersion || 'unknown',
+    modelVersion: node.modelVersion || 'unknown',
+    lastHeartbeat: node.lastHeartbeat || null,
+    lastUpdate: node.lastUpdate || new Date().toISOString(),
+    createdAt: node.createdAt || null,
+    updatedAt: node.updatedAt || null,
+  };
+};
+
+export const fetchNodes = createAsyncThunk('nodes/fetchNodes', async (_, thunkApi) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/nodes`);
+    return response.data.data || [];
+  } catch (error) {
+    return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to fetch nodes');
+  }
+});
+
+export const registerNode = createAsyncThunk('nodes/registerNode', async (payload, thunkApi) => {
+  try {
+    await axios.post(`${API_BASE_URL}/api/nodes/register`, payload);
+    const response = await axios.get(`${API_BASE_URL}/api/nodes`);
+    return response.data.data || [];
+  } catch (error) {
+    return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to register node');
+  }
+});
+
+export const updateNodePolygons = createAsyncThunk('nodes/updateNodePolygons', async ({ nodeId, lanePolygons }, thunkApi) => {
+  try {
+    const response = await axios.patch(`${API_BASE_URL}/api/nodes/${nodeId}`, { lanePolygons });
+    return response.data.data;
+  } catch (error) {
+    return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to update polygons');
+  }
+});
+
+export const deleteNode = createAsyncThunk('nodes/deleteNode', async (nodeId, thunkApi) => {
+  try {
+    await axios.delete(`${API_BASE_URL}/api/nodes/${nodeId}`);
+    return nodeId;
+  } catch (error) {
+    return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to delete node');
+  }
+});
+
+/**
+ * Update node configuration (name, IP, location, camera settings, etc.)
+ * @param {Object} payload - { nodeId, updates }
+ */
+export const updateNode = createAsyncThunk('nodes/updateNode', async ({ nodeId, updates }, thunkApi) => {
+  try {
+    const response = await axios.patch(`${API_BASE_URL}/api/nodes/${nodeId}`, updates);
+    return response.data.data;
+  } catch (error) {
+    return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to update node');
+  }
+});
 
 const nodesSlice = createSlice({
   name: 'nodes',
@@ -325,6 +206,93 @@ const nodesSlice = createSlice({
       }
     },
 
+    updateNodeFromHeartbeat(state, action) {
+      const { 
+        nodeId, 
+        status, 
+        health = {}, 
+        timestamp, 
+        uptimeSec, 
+        firmwareVersion, 
+        modelVersion,
+        // New telemetry fields
+        frameRate,
+        resolution,
+        sensitivity,
+        minObjectSize,
+        bandwidth,
+        cpu,
+        temperature,
+        memory,
+        network,
+        storage,
+        latitude,
+        longitude,
+        ipAddress,
+        videoFeedUrl,
+        lanes,
+        laneStatus,
+        speedLimit,
+        streetName,
+      } = action.payload;
+      
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (node) {
+        console.log(
+          `🔄 Updating node ${nodeId}: status=${status}, lastBeat=${new Date(timestamp).toLocaleTimeString()}`
+        );
+        node.status = status;
+        node.health = { ...node.health, ...health };
+        node.lastHeartbeat = timestamp;
+        node.uptimeSec = uptimeSec || node.uptimeSec;
+        node.firmwareVersion = firmwareVersion || node.firmwareVersion;
+        node.modelVersion = modelVersion || node.modelVersion;
+        
+        // Update new telemetry fields if provided
+        if (frameRate !== undefined) node.frameRate = frameRate;
+        if (resolution !== undefined) node.resolution = resolution;
+        if (sensitivity !== undefined) node.sensitivity = sensitivity;
+        if (minObjectSize !== undefined) node.minObjectSize = minObjectSize;
+        if (bandwidth !== undefined) node.bandwidth = bandwidth;
+        if (cpu !== undefined) node.cpu = cpu;
+        if (temperature !== undefined) node.temperature = temperature;
+        if (memory !== undefined) node.memory = memory;
+        if (network !== undefined) node.network = network;
+        if (storage !== undefined) node.storage = storage;
+        if (latitude !== undefined) node.latitude = latitude;
+        if (longitude !== undefined) node.longitude = longitude;
+        if (ipAddress !== undefined) node.ipAddress = ipAddress;
+        if (videoFeedUrl !== undefined) node.videoFeedUrl = videoFeedUrl;
+        if (lanes !== undefined) node.lanes = lanes;
+        if (laneStatus !== undefined) node.laneStatus = laneStatus;
+        if (speedLimit !== undefined) node.speedLimit = speedLimit;
+        if (streetName !== undefined) node.streetName = streetName;
+        
+        node.lastUpdate = new Date().toISOString();
+      } else {
+        console.warn(`⚠️ Node ${nodeId} not found in state during heartbeat update`);
+      }
+    },
+
+    markNodeOffline(state, action) {
+      const { nodeId } = action.payload;
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (node) {
+        console.error(`🔴 Marking node ${nodeId} OFFLINE (no heartbeat for 60+ seconds)`);
+        node.status = 'offline';
+        node.health = {
+          cpu: 0,
+          temperature: 0,
+          memory: 0,
+          network: 0,
+          storage: 0,
+          currentFps: 0,
+        };
+        node.uptimeSec = 0;
+        node.lastUpdate = new Date().toISOString();
+      }
+    },
+
     setLoading(state, action) {
       state.isLoading = action.payload;
     },
@@ -332,6 +300,97 @@ const nodesSlice = createSlice({
     setError(state, action) {
       state.error = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchNodes.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchNodes.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const normalized = action.payload.map(normalizeNode);
+        state.nodes = normalized;
+
+        if (normalized.length === 0) {
+          state.selectedNodeId = null;
+        } else if (!state.selectedNodeId || !normalized.some(n => n.id === state.selectedNodeId)) {
+          state.selectedNodeId = normalized[0].id;
+        }
+      })
+      .addCase(fetchNodes.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to fetch nodes';
+      })
+      .addCase(registerNode.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(registerNode.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const normalized = action.payload.map(normalizeNode);
+        state.nodes = normalized;
+
+        if (normalized.length === 0) {
+          state.selectedNodeId = null;
+        } else if (!state.selectedNodeId || !normalized.some(n => n.id === state.selectedNodeId)) {
+          state.selectedNodeId = normalized[0].id;
+        }
+      })
+      .addCase(registerNode.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to register node';
+      })
+      .addCase(updateNodePolygons.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateNodePolygons.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const updated = normalizeNode(action.payload);
+        const idx = state.nodes.findIndex(n => n.id === updated.id);
+        if (idx !== -1) {
+          state.nodes[idx] = updated;
+        }
+      })
+      .addCase(updateNodePolygons.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to update polygons';
+      })
+      .addCase(deleteNode.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteNode.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const deletedNodeId = action.payload;
+        state.nodes = state.nodes.filter((node) => node.id !== deletedNodeId);
+
+        if (state.selectedNodeId === deletedNodeId) {
+          state.selectedNodeId = state.nodes[0]?.id || null;
+          state.currentTab = 'overview';
+        }
+      })
+      .addCase(deleteNode.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to delete node';
+      })
+      .addCase(updateNode.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateNode.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const updated = normalizeNode(action.payload);
+        const idx = state.nodes.findIndex(n => n.id === updated.id);
+        if (idx !== -1) {
+          state.nodes[idx] = updated;
+        }
+      })
+      .addCase(updateNode.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to update node';
+      });
   },
 });
 
@@ -349,6 +408,8 @@ export const {
   updateLanePolygon,
   deleteLanePolygon,
   updateNodeHealth,
+  updateNodeFromHeartbeat,
+  markNodeOffline,
   setLoading,
   setError,
 } = nodesSlice.actions;

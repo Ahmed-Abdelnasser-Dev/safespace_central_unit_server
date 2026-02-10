@@ -6,6 +6,42 @@ export function emitAdminAccidentResponse(response) {
   const s = getSocket();
   s.emit('admin_accident_response', response);
 }
+
+/**
+ * Listen for node heartbeat events
+ * @param {Function} callback - handler for heartbeat data
+ */
+export function onNodeHeartbeat(callback) {
+  const s = getSocket();
+  s.on('node_heartbeat', callback);
+}
+
+/**
+ * Remove node heartbeat listener
+ * @param {Function} callback
+ */
+export function offNodeHeartbeat(callback) {
+  const s = getSocket();
+  s.off('node_heartbeat', callback);
+}
+
+/**
+ * Listen for node config update events
+ * @param {Function} callback - handler for config update data
+ */
+export function onNodeConfigUpdate(callback) {
+  const s = getSocket();
+  s.on('node_config_update', callback);
+}
+
+/**
+ * Remove node config update listener
+ * @param {Function} callback
+ */
+export function offNodeConfigUpdate(callback) {
+  const s = getSocket();
+  s.off('node_config_update', callback);
+}
 /**
  * Socket.IO Client Service
  * Manages real-time connection to backend for accident notifications

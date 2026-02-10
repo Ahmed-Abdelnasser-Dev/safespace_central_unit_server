@@ -118,10 +118,28 @@ const mobileServerToCentralSchema = z.object({
   })
 });
 
+/**
+ * Schema for node snapshot upload
+ * POST /api/nodes/:nodeId/snapshot
+ */
+const nodeSnapshotSchema = z.object({
+  body: z.object({
+    incident_id: z.string().optional(),
+    timestamp: z.string(),
+    incident_type: z.string(),
+    confidence: z.string().transform(val => parseFloat(val)),
+  }),
+  params: z.object({
+    nodeId: z.string().min(1, 'Node ID is required'),
+  }),
+  files: z.array(z.any()).min(1, 'Snapshot image is required'),
+});
+
 module.exports = {
   accidentDetectedSchema,
   accidentDecisionSchema,
   mobileAccidentDetectedSchema,
   mobileServerToCentralSchema,
+  nodeSnapshotSchema,
 };
 

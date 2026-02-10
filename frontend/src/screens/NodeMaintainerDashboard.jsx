@@ -10,10 +10,14 @@
  * @component
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  addNode,
+  fetchNodes,
+  registerNode,
+  updateNodePolygons,
+  deleteNode,
+  updateNode,
   selectAllNodes,
   selectNode,
   selectSelectedNode,
@@ -30,6 +34,9 @@ import NodeConfigTab from '../features/nodeMaintainer/screens/NodeConfigTab.jsx'
 import HealthTab from '../features/nodeMaintainer/screens/HealthTab.jsx';
 import PolygonsTab from '../features/nodeMaintainer/screens/PolygonsTab.jsx';
 import PolygonEditorDialog from '../features/nodeMaintainer/components/PolygonEditorDialog.jsx';
+import ConfirmDialog from '../features/nodeMaintainer/components/ui/ConfirmDialog.jsx';
+import EditNodeModal from '../features/nodeMaintainer/components/EditNodeModal.jsx';
+import VideoFeedPlayer from '../features/nodeMaintainer/components/VideoFeedPlayer.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Button from '../components/ui/Button.jsx';
 import Modal from '../components/ui/Modal.jsx';
@@ -43,6 +50,12 @@ export default function NodeMaintainerDashboard() {
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
   const [editingPolygon, setEditingPolygon] = useState(null);
   const [showAddNodeModal, setShowAddNodeModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [formError, setFormError] = useState('');
   const [newNode, setNewNode] = useState({
     id: '',
@@ -52,6 +65,10 @@ export default function NodeMaintainerDashboard() {
     speedLimit: '',
     ipAddress: '',
   });
+
+  useEffect(() => {
+    dispatch(fetchNodes());
+  }, [dispatch]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'eye' },
@@ -78,6 +95,10 @@ export default function NodeMaintainerDashboard() {
         }} onAddPolygon={() => {
           setEditingPolygon(null);
           setShowPolygonEditor(true);
+        }} onDeletePolygon={(poly) => {
+          if (!selectedNode) return;
+          const updatedPolygons = (selectedNode.lanePolygons || []).filter(p => p.id !== poly.id);
+          dispatch(updateNodePolygons({ nodeId: selectedNode.id, lanePolygons: updatedPolygons }));
         }} />;
       default:
         return null;
@@ -133,19 +154,11 @@ export default function NodeMaintainerDashboard() {
     }
 
     const nodePayload = {
-      id: trimmedId,
-      name: trimmedId,
-      status: 'offline',
+      nodeId: trimmedId,
       location: {
         latitude: lat,
         longitude: lon,
         address: trimmedAddress,
-      },
-      roadRules: {
-        lanes: [
-          { id: 1, name: 'Lane 1', type: 'Main Lane', status: 'open' },
-        ],
-        speedLimit,
       },
       nodeSpecs: {
         cameraResolution: '1920x1080',
@@ -155,26 +168,56 @@ export default function NodeMaintainerDashboard() {
         detectionSensitivity: 70,
         minObjectSize: 50,
       },
-      health: {
-        cpu: 0,
-        temperature: 0,
-        memory: 0,
-        network: 0,
-        storage: 0,
-        currentFps: 0,
-      },
-      lanePolygons: [],
-      lastHeartbeat: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
+      firmwareVersion: '1.0.0',
+      modelVersion: 'yolov8n-2026.01',
     };
 
-    dispatch(addNode(nodePayload));
-    dispatch(selectNode(trimmedId));
-    dispatch(setCurrentTab('nodeConfig'));
-    setShowAddNodeModal(false);
-    resetNewNodeForm();
+    dispatch(registerNode(nodePayload))
+      .unwrap()
+      .then(() => {
+        dispatch(selectNode(trimmedId));
+        dispatch(setCurrentTab('nodeConfig'));
+        setShowAddNodeModal(false);
+        resetNewNodeForm();
+      })
+      .catch((error) => {
+        setFormError(error || 'Failed to register node');
+      });
   };
 
+  const handleDeleteNode = () => {
+    if (!selectedNode) return;
+    setIsDeleting(true);
+    setDeleteError('');
+
+    dispatch(deleteNode(selectedNode.id))
+      .unwrap()
+      .then(() => {
+        setIsDeleting(false);
+        setShowDeleteConfirm(false);
+      })
+      .catch((error) => {
+        setIsDeleting(false);
+        setDeleteError(error || 'Failed to delete node');
+      });
+  };
+
+  const handleEditNode = (formData) => {
+    if (!selectedNode) return;
+    setIsEditing(true);
+    setEditError('');
+
+    dispatch(updateNode({ nodeId: selectedNode.id, updates: formData }))
+      .unwrap()
+      .then(() => {
+        setIsEditing(false);
+        setShowEditModal(false);
+      })
+      .catch((error) => {
+        setIsEditing(false);
+        setEditError(error || 'Failed to update node');
+      });
+  };
   return (
     <div 
       className="flex h-screen w-full overflow-hidden"
@@ -212,21 +255,21 @@ export default function NodeMaintainerDashboard() {
               <div className="bg-white border border-[#e5e7eb] rounded-[8px] lg:rounded-[10px] xl:rounded-[13.684px] px-[14px] lg:px-[16px] xl:px-[20px] py-[12px] lg:py-[14px] xl:py-[15px] shadow-sm flex-shrink-0">
                 <div className="flex items-center justify-between mb-[8px] lg:mb-[10px]">
                   <div className="flex items-center gap-[6px] lg:gap-[8px] min-w-0 flex-wrap">
-                    <div 
-                      className="rounded-full flex-shrink-0" 
-                      style={{ 
-                        width: '8px', 
+                    <div
+                      className="rounded-full flex-shrink-0"
+                      style={{
+                        width: '8px',
                         height: '8px',
                         backgroundColor: selectedNode.status === 'online' ? '#4caf50' : '#d63e4d'
-                      }} 
+                      }}
                     />
-                    <h2 
+                    <h2
                       className="font-bold text-[#101828] truncate"
                       style={{ fontSize: 'clamp(14px, 1.5vw, 16px)', fontFamily: 'Arimo, sans-serif' }}
                     >
                       {selectedNode.id}
                     </h2>
-                    <span 
+                    <span
                       className={`px-[10px] lg:px-[12px] py-[3px] lg:py-4px] rounded-[4px] lg:rounded-[6px] font-medium flex-shrink-0 ${
                         selectedNode.status === 'online'
                           ? 'bg-[#e8f5e9] text-[#4caf50]'
@@ -237,14 +280,49 @@ export default function NodeMaintainerDashboard() {
                       {selectedNode.status}
                     </span>
                   </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setShowEditModal(true)}
+                      className="!px-3 !py-1.5"
+                      title="Edit node settings"
+                      disabled={isEditing}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="!px-3 !py-1.5"
+                      title="Delete node"
+                      disabled={isDeleting}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
 
-                <p 
+                <p
                   className="text-[#6a7282] mb-[12px] lg:mb-[14px] xl:mb-[15px] font-normal truncate"
                   style={{ fontSize: 'clamp(11px, 1.1vw, 12px)', fontFamily: 'Arimo, sans-serif' }}
                 >
                   {selectedNode.location.address}
                 </p>
+
+                {/* Video Feed */}
+                {selectedNode.videoFeedUrl && (
+                  <div className="mb-[12px] lg:mb-[14px] xl:mb-[15px]">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Live Video Feed</p>
+                    <VideoFeedPlayer
+                      videoFeedUrl={selectedNode.videoFeedUrl}
+                      nodeId={selectedNode.id}
+                      status={selectedNode.status}
+                    />
+                  </div>
+                )}
 
                 {/* Tabs - Horizontal scroll on smaller screens */}
                 <div className="flex gap-[6px] lg:gap-[8px] overflow-x-auto -mx-[14px] lg:-mx-[16px] xl:-mx-[20px] px-[14px] lg:px-[16px] xl:px-[20px] pb-[4px]">
@@ -273,16 +351,15 @@ export default function NodeMaintainerDashboard() {
             </div>
           )}
 
-          {/* Placeholder when no node is selected */}
           {!selectedNode && (
             <div className="flex-1 flex items-center justify-center bg-white/50 border border-[#e5e7eb] rounded-[8px] lg:rounded-[10px] xl:rounded-[13.684px]">
               <div className="text-center px-[20px]">
-                <FontAwesomeIcon 
-                  icon="circle-info" 
-                  className="text-[#99a1af] mb-[12px]" 
+                <FontAwesomeIcon
+                  icon="circle-info"
+                  className="text-[#99a1af] mb-[12px]"
                   style={{ width: 'clamp(32px, 5vw, 48px)', height: 'clamp(32px, 5vw, 48px)' }}
                 />
-                <p 
+                <p
                   className="text-[#6a7282]"
                   style={{ fontSize: 'clamp(12px, 1.2vw, 14px)', fontFamily: 'Arimo, sans-serif' }}
                 >
@@ -293,6 +370,37 @@ export default function NodeMaintainerDashboard() {
           )}
         </div>
       </div>
+
+        <EditNodeModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditError('');
+          }}
+          onSave={handleEditNode}
+          node={selectedNode}
+          isLoading={isEditing}
+          error={editError}
+        />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Node"
+        message={
+          selectedNode
+            ? `This will permanently remove ${selectedNode.id} and all related configuration.`
+            : 'This will permanently remove the selected node.'
+        }
+        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={handleDeleteNode}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteError('');
+        }}
+        isDangerous
+        errorMessage={deleteError}
+      />
 
       {/* Polygon Editor Dialog */}
       {showPolygonEditor && (

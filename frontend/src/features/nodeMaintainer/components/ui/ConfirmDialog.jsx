@@ -12,9 +12,8 @@
  * @param {Function} onConfirm - Callback when confirmed
  * @param {Function} onCancel - Callback when cancelled
  * @param {boolean} isDangerous - If true, confirm button is red (for destructive actions)
+ * @param {string} [errorMessage] - Optional error text displayed under the message
  */
-
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 function ConfirmDialog({ 
   isOpen, 
@@ -24,7 +23,8 @@ function ConfirmDialog({
   cancelText = 'Cancel',
   onConfirm,
   onCancel,
-  isDangerous = false
+  isDangerous = false,
+  errorMessage = ''
 }) {
   if (!isOpen) return null;
 
@@ -44,7 +44,7 @@ function ConfirmDialog({
 
         {/* Message */}
         <p 
-          className="text-[#6a7282] mb-[20px]"
+          className="text-[#6a7282] mb-[12px]"
           style={{ 
             fontSize: 'clamp(12px, 1.3vw, 14px)',
             fontFamily: 'Arimo, sans-serif'
@@ -52,6 +52,18 @@ function ConfirmDialog({
         >
           {message}
         </p>
+
+        {errorMessage && (
+          <div
+            className="mb-[20px] rounded-[8px] border border-[#f2b8bd] bg-[#fdecee] px-[12px] py-[8px] text-[#b42318]"
+            style={{ 
+              fontSize: 'clamp(11px, 1.2vw, 12px)',
+              fontFamily: 'Arimo, sans-serif'
+            }}
+          >
+            {errorMessage}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-[12px] justify-end">

@@ -9,6 +9,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
 const { logger } = require('./utils/logger');
+const wsManager = require('./utils/websocketManager');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -49,7 +50,11 @@ const io = new Server(server, {
 // Make io accessible to app
 app.set('io', io);
 
-// Socket.IO connection handler
+// Initialize WebSocket manager for node connections
+wsManager.initialize(server);
+wsManager.startHealthCheck();
+
+// Socket.IO connection handler (for dashboard clients)
 io.on('connection', (socket) => {
   logger.info(`Dashboard client connected: ${socket.id}`);
 

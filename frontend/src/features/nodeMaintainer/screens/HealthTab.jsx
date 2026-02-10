@@ -11,7 +11,6 @@ import { selectSelectedNode } from '../nodesSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrochip, faTemperatureHalf, faWifi, faDatabase } from '@fortawesome/free-solid-svg-icons';
 import MetricCard from '../components/cards/MetricCard';
-import LineChart from '../components/charts/LineChart';
 import SectionHeader from '../components/layout/SectionHeader';
 import { fontFamily } from '../styles/typography';
 
@@ -19,10 +18,6 @@ function HealthTab() {
   const node = useSelector(selectSelectedNode);
 
   if (!node) return <div className="p-[16px] text-[#6a7282]" style={{ fontFamily: 'Arimo, sans-serif' }}>Select a node</div>;
-
-  // Mock data for charts
-  const cpuData = Array.from({ length: 5 }, (_, i) => Math.floor(Math.random() * 50) + 20);
-  const tempData = Array.from({ length: 5 }, (_, i) => Math.floor(Math.random() * 30) + 30);
 
   return (
     <div className="p-[20px] space-y-[20px]">
@@ -62,19 +57,11 @@ function HealthTab() {
       <SectionHeader title="Historical Data" showDivider={true} />
 
       <div className="space-y-[20px]">
-        <LineChart
-          data={cpuData}
-          color="#3b82f6"
-          title="CPU History"
-          timeLabels={['-40s', '-30s', '-20s', '-10s', 'now']}
-        />
-
-        <LineChart
-          data={tempData}
-          color="#f97316"
-          title="Temperature History"
-          timeLabels={['-40s', '-30s', '-20s', '-10s', 'now']}
-        />
+        <div className="rounded-[8px] border border-[#e5e7eb] bg-[#f7f8f9] px-[12px] py-[14px] text-[#6a7282]">
+          <span style={{ fontSize: 'clamp(12px, 1.2vw, 14px)', fontFamily }}>
+            No historical data yet
+          </span>
+        </div>
       </div>
 
       

@@ -20,9 +20,15 @@ import UsersManagement from './screens/UsersManagement.jsx';
 import ActivityLogs from './screens/ActivityLogs.jsx';
 import UserProfile from './screens/UserProfile.jsx';
 import NodeMaintainerDashboard from './screens/NodeMaintainerDashboard.jsx';
+import { useNodeHeartbeat } from './hooks/useNodeHeartbeat';
+import { useHeartbeatTimeout } from './hooks/useHeartbeatTimeout';
 import './App.css';
 
 function App() {
+  // Activate global node heartbeat listener and timeout detection
+  // These persist across navigation and all routes
+  useNodeHeartbeat();
+  useHeartbeatTimeout();
   // In development mode, allow direct access to node-maintainer without auth
   const isDev = import.meta.env.DEV;
 

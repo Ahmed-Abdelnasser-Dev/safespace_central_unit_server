@@ -13,7 +13,7 @@ import ListItem from '../components/lists/ListItem';
 import EmptyState from '../components/lists/EmptyState';
 import { typography, fontFamily } from '../styles/typography';
 
-function PolygonsTab({ onAddPolygon, onEditPolygon }) {
+function PolygonsTab({ onAddPolygon, onEditPolygon, onDeletePolygon }) {
   const node = useSelector(selectSelectedNode);
 
   if (!node) return <div>Select a node</div>;
@@ -57,7 +57,7 @@ function PolygonsTab({ onAddPolygon, onEditPolygon }) {
                 {
                   label: 'Delete',
                   icon: <FontAwesomeIcon icon="trash" style={{ width: '12px', height: '12px' }} />,
-                  onClick: () => {},
+                  onClick: () => onDeletePolygon?.(polygon),
                   variant: 'danger'
                 }
               ]}

@@ -10,9 +10,10 @@
  * @component
  */
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectSelectedNode } from "../nodesSlice";
+import { useNodeVideoFeed } from "../../../hooks/useNodeVideoFeed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMicrochip,
@@ -29,25 +30,73 @@ import SectionHeader from "../components/layout/SectionHeader";
 import InfoRow from "../components/ui/InfoRow";
 import ListItem from "../components/lists/ListItem";
 import RoadStatusDisplay from "../components/sections/RoadStatusDisplay";
-import LineChart from "../components/charts/LineChart";
 import { typography, fontFamily } from "../styles/typography";
+
+/**
+ * Format uptime seconds into human-readable string
+ * @param {number} seconds - Uptime in seconds
+ * @returns {string} Formatted uptime (e.g., "2h 34m 12s")
+ */
+function formatUptime(seconds) {
+  if (!seconds || seconds === 0) return "0s";
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+  
+  return parts.join(" ");
+}
 
 export default function OverviewTab() {
   const node = useSelector(selectSelectedNode);
+  const { currentFrame, lastSnapshot, isConnected } = useNodeVideoFeed();
+  const [displayImage, setDisplayImage] = useState(null);
+  const feedRef = useRef(null);
+  const [feedSize, setFeedSize] = useState({ width: 0, height: 0 });
 
   if (!node) return null;
 
-  // Placeholder camera feed image - replace with actual video stream
-  const cameraFeedPlaceholder =
-    "https://images.unsplash.com/photo-1516639479238-57bbea3c81dd?w=1920&h=1080&fit=crop";
+  // Determine what to display: live frame, snapshot, or placeholder
+  useEffect(() => {
+    if (currentFrame && currentFrame.frameData) {
+      // Display live video frame (base64)
+      setDisplayImage(`data:image/jpeg;base64,${currentFrame.frameData}`);
+    } else if (lastSnapshot && lastSnapshot.snapshotPath) {
+      // Display last snapshot from incident
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      setDisplayImage(`${baseUrl}${lastSnapshot.snapshotPath}`);
+    }
+  }, [currentFrame, lastSnapshot]);
+
+  useEffect(() => {
+    const container = feedRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      setFeedSize({ width: rect.width, height: rect.height });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
 
   // Sample lane data
   const lanes = node?.roadRules?.lanes || [];
   const speedLimit = node?.roadRules?.speedLimit || 120;
 
-  // Mock data for charts
-  const cpuData = Array.from({ length: 5 }, () => Math.floor(Math.random() * 50) + 20);
-  const tempData = Array.from({ length: 5 }, () => Math.floor(Math.random() * 30) + 30);
 
   const laneStatusIcons = {
     open: { icon: faCircleCheck, color: "#22c55e", bg: "#e8f5e9", label: "Open" },
@@ -77,15 +126,26 @@ export default function OverviewTab() {
         </h4>
 
         <div
+          ref={feedRef}
           className="relative bg-[#1a1a1a] rounded-[6px] sm:rounded-[7px] md:rounded-[8px] overflow-hidden w-full"
           style={{ aspectRatio: "16/9" }}
         >
-          {/* Camera Feed Image/Video */}
-          <img
-            src={cameraFeedPlaceholder}
-            alt="Live camera feed"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          {displayImage ? (
+            <img 
+              src={displayImage} 
+              alt="Live camera feed" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#111827]">
+              <span
+                className="text-white/70"
+                style={{ fontSize: 'clamp(12px, 1.2vw, 14px)', fontFamily }}
+              >
+                {isConnected ? 'Waiting for video feed...' : 'Live stream not connected'}
+              </span>
+            </div>
+          )}
 
           {/* LIVE Badge */}
           <div
@@ -93,7 +153,7 @@ export default function OverviewTab() {
             style={{ top: "12px", left: "12px" }}
           >
             <div
-              className="bg-white rounded-full opacity-60 animate-pulse"
+              className={`bg-white rounded-full ${isConnected && node.status === 'online' ? 'animate-pulse' : 'opacity-40'}`}
               style={{ width: "4px", height: "4px" }}
             />
             <span
@@ -103,25 +163,77 @@ export default function OverviewTab() {
                 fontFamily,
               }}
             >
-              LIVE
+              {isConnected && node.status === 'online' ? 'LIVE' : 'OFFLINE'}
             </span>
           </div>
 
           {/* Resolution Info */}
-          <div
-            className="absolute bg-black bg-opacity-80 rounded-[3px] px-[8px] py-[4px] shadow-md"
-            style={{ bottom: "12px", left: "12px" }}
-          >
-            <span
-              className="text-white font-normal"
-              style={{
-                ...typography.caption,
-                fontFamily,
-              }}
+          {displayImage && (
+            <div
+              className="absolute bg-black bg-opacity-80 rounded-[3px] px-[8px] py-[4px] shadow-md"
+              style={{ bottom: "12px", left: "12px" }}
             >
-              1920×1080 @ 30 FPS
-            </span>
-          </div>
+              <span
+                className="text-white font-normal"
+                style={{
+                  ...typography.caption,
+                  fontFamily,
+                }}
+              >
+                {node.nodeSpecs.cameraResolution || '1920×1080'} @ {node.health.currentFps?.toFixed(1) || 0} FPS
+              </span>
+            </div>
+          )}
+
+          {/* Incident Overlay (when snapshot is from incident) */}
+          {lastSnapshot && lastSnapshot.incidentType && (
+            <div
+              className="absolute bg-red-600 bg-opacity-90 rounded-[3px] px-[10px] py-[6px] shadow-lg"
+              style={{ top: "12px", right: "12px" }}
+            >
+              <span className="text-white font-bold text-xs uppercase">
+                {lastSnapshot.incidentType} - {(lastSnapshot.confidence * 100).toFixed(0)}%
+              </span>
+            </div>
+          )}
+
+          {/* Polygon Overlay */}
+          {displayImage && node.lanePolygons?.length > 0 && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 ${feedSize.width} ${feedSize.height}`}
+              preserveAspectRatio="none"
+            >
+              {node.lanePolygons.map((poly) => {
+                const baseWidth = poly.baseWidth || feedSize.width;
+                const baseHeight = poly.baseHeight || feedSize.height;
+                const scaleX = baseWidth ? feedSize.width / baseWidth : 1;
+                const scaleY = baseHeight ? feedSize.height / baseHeight : 1;
+                const points = (poly.points || [])
+                  .map((p) => {
+                    const x = typeof p?.x === 'number' ? p.x : (Array.isArray(p) ? p[0] : null);
+                    const y = typeof p?.y === 'number' ? p.y : (Array.isArray(p) ? p[1] : null);
+                    if (typeof x !== 'number' || typeof y !== 'number') return null;
+                    return `${x * scaleX},${y * scaleY}`;
+                  })
+                  .filter(Boolean)
+                  .join(' ');
+
+                if (!points) return null;
+
+                return (
+                  <g key={poly.id}>
+                    <polygon
+                      points={points}
+                      fill="rgba(59, 130, 246, 0.15)"
+                      stroke="rgba(59, 130, 246, 0.9)"
+                      strokeWidth="2"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          )}
         </div>
       </div>
 
@@ -173,16 +285,28 @@ export default function OverviewTab() {
       <SectionHeader title="Node Information" showDivider={true} />
 
       <div className="bg-[#f7f8f9] rounded-[6px] sm:rounded-[7px] md:rounded-[8px] p-[12px] sm:p-[14px] md:p-[16px] border border-[#e5e7eb] space-y-[8px] sm:space-y-[10px] md:space-y-[12px]">
-        <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-          <InfoRow label="Install Date" value="2024-01-15" />
-        </div>
+          <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <InfoRow label="Install Date" value={node.createdAt ? new Date(node.createdAt).toLocaleDateString() : 'Not available'} />
+          </div>
 
-        <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-          <InfoRow label="Last Heartbeat" value="2 mins ago" />
-        </div>
+          <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <InfoRow label="Last Heartbeat" value={node.lastHeartbeat ? new Date(node.lastHeartbeat).toLocaleString() : 'Not available'} />
+          </div>
+
+          <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <InfoRow label="Uptime" value={formatUptime(node.uptimeSec || 0)} />
+          </div>
 
         <div style={{ borderBottom: '1px solid #e5e7eb' }}>
           <InfoRow label="IP Address" value={node.nodeSpecs.ipAddress} />
+        </div>
+
+        <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+          <InfoRow label="Firmware Version" value={node.firmwareVersion || 'unknown'} />
+        </div>
+
+        <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+          <InfoRow label="AI Model Version" value={node.modelVersion || 'unknown'} />
         </div>
 
         <InfoRow 

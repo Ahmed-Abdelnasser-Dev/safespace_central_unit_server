@@ -112,6 +112,29 @@ function NodeConfigTab() {
         </div>
       ))}
 
+      {/* System Information (Read-only) */}
+      <div className="space-y-[12px]">
+        <SectionLabel text="System Information" icon="microchip" />
+        <ConfigCard>
+          <div className="space-y-[8px]">
+            <div className="flex justify-between items-center py-[8px] border-b border-[#e5e7eb]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>Firmware Version</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>{node.firmwareVersion || 'unknown'}</span>
+            </div>
+            <div className="flex justify-between items-center py-[8px] border-b border-[#e5e7eb]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>AI Model Version</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>{node.modelVersion || 'unknown'}</span>
+            </div>
+            <div className="flex justify-between items-center py-[8px]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>Uptime</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>
+                {node.uptimeSec ? `${Math.floor(node.uptimeSec / 3600)}h ${Math.floor((node.uptimeSec % 3600) / 60)}m` : '0m'}
+              </span>
+            </div>
+          </div>
+        </ConfigCard>
+      </div>
+
       {/* Save Button */}
       <PrimaryButton
         onClick={handleSaveConfig}

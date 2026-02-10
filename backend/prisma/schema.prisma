@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Node {
+  id              String   @id @default(uuid())
+  nodeId          String   @unique
+  name            String
+  streetName      String   @default("Unknown Street")
+  status          String   @default("offline")
+  
+  // Location & Network
+  location        Json
+  latitude        Float    @default(0.0)
+  longitude       Float    @default(0.0)
+  ipAddress       String   @default("0.0.0.0")
+  videoFeedUrl    String?
+  
+  // Hardware & Configuration
+  nodeSpecs       Json
+  roadRules       Json
+  lanePolygons    Json     @default("[]")
+  lanes           Json     @default("[]")
+  laneStatus      String   @default("unknown")
+  speedLimit      Int      @default(80)
+  
+  // Camera Configuration
+  frameRate       Int      @default(30)
+  resolution      String   @default("1920x1080")
+  sensitivity     Float    @default(0.5)
+  minObjectSize   Int      @default(10)
+  bandwidth       Float    @default(0.0)
+  
+  // Telemetry & Health
+  health          Json
+  cpu             Float    @default(0.0)
+  temperature     Float    @default(0.0)
+  memory          Float    @default(0.0)
+  network         Float    @default(0.0)
+  storage         Float    @default(0.0)
+  
+  // Firmware & Versioning
+  uptimeSec       Int      @default(0)
+  firmwareVersion String   @default("unknown")
+  modelVersion    String   @default("unknown")
+  
+  // Timestamps
+  lastHeartbeat   DateTime?
+  lastUpdate      DateTime @default(now()) @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
