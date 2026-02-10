@@ -5,7 +5,7 @@ import {
   faMagnifyingGlass, faRotate, faShield, faMapPin, faPlus, faMinus, faExpand,
   faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle, faEnvelope, 
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus,
-  faCalendarCheck, faSort
+  faCalendarCheck, faSort, faSave
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -14,5 +14,5 @@ library.add(
   faMagnifyingGlass, faRotate, faShield, faMapPin, faPlus, faMinus, faExpand,
   faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle , faEnvelope,
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus, 
-  faCalendarCheck, faSort
+  faCalendarCheck, faSort, faSave
 );

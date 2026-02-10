@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import UsersTable from './ui/UsersTable';
+import EditUserModal from './EditUserModal';
 
 /**
  * User Management Table
  * Displays all users with actions using base Table component
  */
 function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, onViewDetails }) {
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  
   // Mock users data - Security: Replace with authenticated API call
   const users = [
     {
@@ -96,6 +102,21 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
     }
   ];
 
+  const handleEditClick = (user) => {
+    setSelectedUser(user);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setSelectedUser(null);
+    setIsModalOpen(false);
+  };
+
+  const handleModalSubmit = (updatedUser) => {
+    console.log('Updated user:', updatedUser);
+    handleModalClose();
+  };
+
   // Custom cell renderer
   const renderCell = (user, column) => {
     switch (column.key) {
@@ -150,7 +171,7 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
           <div className={`flex items-center gap-2 ${
           column.key === 'actions' ? 'justify-end' : ''}`}>
             <button
-              onClick={() => onEdit && onEdit(user)}
+              onClick={() => handleEditClick(user)}
               className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
             >
               Edit
@@ -182,12 +203,21 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
   };
 
   return (
-    <UsersTable
-      columns={columns}
-      data={users}
-      onRowClick={onViewDetails}
-      renderCell={renderCell}
-    />
+    <>
+      <UsersTable
+        columns={columns}
+        data={users}
+        onRowClick={onViewDetails}
+        renderCell={renderCell}
+      />
+      <EditUserModal
+        isOpen={isModalOpen}
+        userData={selectedUser}
+        onClose={handleModalClose}
+        onSubmit={handleModalSubmit}
+      />  
+    </>
+
   );
 }
 

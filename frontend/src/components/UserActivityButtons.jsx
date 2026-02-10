@@ -1,12 +1,24 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Link, useNavigate } from 'react-router-dom';
-
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import CreateUserModal from './CreateUserModal';
 
 /**
- * Search Bar for users management
+ * Search Bar for Activity Logs
  */
 
 function UserActivityButtons() {
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleCreateUser = (data) => {
+        // 🔐 send data to backend here
+        console.log('User created:', {
+        ...data,
+        password: '[REDACTED]',
+        });
+    };
+
     return (
         
         <div className="flex mt-6">
@@ -23,11 +35,19 @@ function UserActivityButtons() {
 
            {/* Create new Account */}
             <div className='ml-auto'>
-                <button className="relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 text-white shadow-sm bg-safe-blue">
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="relative px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 text-white shadow-sm bg-safe-blue">
                     <FontAwesomeIcon icon="user-plus" />
                     Create New Account
                 </button>
             </div>
+
+            <CreateUserModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSubmit={handleCreateUser}
+            />            
         </div>
     );
 }
