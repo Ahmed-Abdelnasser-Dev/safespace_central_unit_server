@@ -7,7 +7,7 @@ import {
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus,
   faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
   faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
-  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faCircleCheck, faCircleXmark,
   faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
   faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
   faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
@@ -17,11 +17,11 @@ library.add(
   faChartLine, faUsers, faBell, faArrowUp, faArrowDown, faCircle, faGaugeHigh,
   faPhone, faVideo, faTrafficLight, faLocationCrosshairs, faMicrochip, faChartSimple,
   faMagnifyingGlass, faRotate, faShield, faMapPin, faPlus, faMinus, faExpand,
-  faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle , faEnvelope,
+  faBook, faPaperPlane, faGear, faCircleUser, faClock, faExclamationTriangle, faEnvelope,
   faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faAngleDown, faUserPlus, 
   faCalendarCheck, faSort, faSave, faEyeSlash, faPenToSquare, faBuilding, faLocationDot,
   faCakeCandles, faVenusMars, faCalendar, faArrowRightFromBracket, faChevronRight, faIdBadge,
-  faLock, faEye, faShieldHalved, faCheck, faCheckCircle, faCircleCheck, faCircleXmark,
+  faCircleCheck, faCircleXmark,
   faTemperatureHalf, faWifi, faDatabase, faCamera, faCrosshairs, faPen, faTrash,
   faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
   faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate
