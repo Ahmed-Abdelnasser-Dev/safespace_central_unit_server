@@ -2,8 +2,6 @@
  * auth.controller.js — Auth controller
  *
  * Thin layer only: extract input → call service → return response.
- * No business logic, no DB access, no token logic here.
- *
  * IP and User-Agent are extracted here and passed to the service
  * so the audit log has full context without the service touching req.
  */

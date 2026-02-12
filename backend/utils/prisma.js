@@ -3,8 +3,7 @@
 // Single Prisma client instance shared across the whole backend.
 // Import this file wherever you need DB access:
 //
-//   const prisma = require('../utils/prisma');
-//   const user = await prisma.user.findUnique({ where: { email } });
+// INTIALS VALUES MUST EXIST FOR ALL SYSTEMS
 // 
 // TO implement seed RUN "npm run db:seed"
 //
