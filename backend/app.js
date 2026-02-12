@@ -11,10 +11,11 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
+const path       = require('path');
+const rateLimit = require("express-rate-limit");
 const { logger } = require("./utils/logger");
 const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
-const authRoutes = require('./modules/auth/auth.routes');
 
 
 const app = express();
@@ -165,6 +166,21 @@ app.get("/api/test-frontend", (req, res) => {
   });
 });
 
+
+// ============================================
+// SECURITY MEASURE iam not sure of yet!!
+// ============================================
+
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100, // limit each IP
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
+
+// app.use("/api", limiter);
+
+
 // ============================================
 // API ROUTES
 // ============================================
@@ -172,8 +188,9 @@ app.get("/api/test-frontend", (req, res) => {
 app.use("/api", require("./modules/incidents/incident.routes"));
 
 // Mount auth routes
-// app.use('/api/auth', require('./modules/auth/auth.routes'));
-
+app.use('/api/auth',          require('./modules/auth/auth.routes'));
+app.use('/api/users',         require('./modules/users/users.routes'));
+app.use('/api/activity-logs', require('./modules/activityLogs/activitylogs.routes'));
 
 
 

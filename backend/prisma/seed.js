@@ -137,9 +137,10 @@ async function main() {
   const defaultPassword = 'Test@123456';
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
+  // noureen ->  password: Nour@123
   const usersData = [
     {
-      email:      'noureen@safespace.com',
+      email:      'noureen@safespace.com',               
       fullName:   'Noureen Ahmed',
       username:   'noureen',
       nationalId: '29501150100125',
