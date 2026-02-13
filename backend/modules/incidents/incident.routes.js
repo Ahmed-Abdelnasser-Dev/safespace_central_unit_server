@@ -96,17 +96,14 @@ const handleMulterError = (err, req, res, next) => {
 
 /**
  * POST /api/accident-detected
- * Receives accident detection data from Edge Nodes
- * Protected by Node authentication middleware
+ * Deprecated. Use Socket.IO event: node_accident_detected
  */
-router.post(
-  '/accident-detected',
-  // Accept multiple media files under field name 'media'
-  upload.array('media', 10),
-  handleMulterError,
-  validate(accidentDetectedSchema),
-  incidentController.accidentDetected
-);
+router.post('/accident-detected', (req, res) => {
+  res.status(410).json({
+    success: false,
+    message: 'Deprecated. Use Socket.IO event: node_accident_detected',
+  });
+});
 
 /**
  * POST /api/accident-decision

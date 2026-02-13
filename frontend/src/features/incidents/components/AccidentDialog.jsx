@@ -7,9 +7,9 @@ import { faArrowLeft, faArrowRight, faCircleCheck, faCircleXmark } from '@fortaw
 import AccidentDialogHeader from './layout/AccidentDialogHeader.jsx';
 import AiAnalysisCard from './cards/AiAnalysisCard.jsx';
 import DecisionCard from './cards/DecisionCard.jsx';
-import FinalDecisionCard from './cards/FinalDecisionCard.jsx';
 import OverridePanel from './override/OverridePanel.jsx';
 import MediaCarousel from './media/MediaCarousel.jsx';
+import { emitAdminAccidentResponse } from '../../../services/socketService.js';
 
 /**
  * AccidentDialog – Displays incoming accident with AI Analysis and Decision Results
@@ -23,21 +23,22 @@ import MediaCarousel from './media/MediaCarousel.jsx';
  * @param {object} props.incident
  */
 function AccidentDialog({ open, onClose, incident, onDecision }) {
-  // Initialize with Decision module's recommendations
-  const initialSpeedLimit = incident?.node?.defaultSpeedLimit
-    || incident?.decision?.speedLimit
+  // Initialize with AI Decision module's recommendations (not node defaults)
+  const initialSpeedLimit = incident?.decision?.speedLimit
+    || incident?.node?.defaultSpeedLimit
     || incident?.speedLimit
     || 40;
   const initialLaneCount = incident?.node?.defaultLaneCount
     || incident?.node?.defaultLaneConfiguration?.length
     || (incident?.decision?.laneConfiguration ? incident.decision.laneConfiguration.split(',').length : 3);
   const initialLaneConfig = Array.from({ length: initialLaneCount }, (_, index) => {
+    // Prioritize AI decision over node defaults
+    if (incident?.decision?.laneConfiguration) {
+      return incident.decision.laneConfiguration.split(',')[index]?.trim().toLowerCase() || 'open';
+    }
     const nodeDefault = incident?.node?.defaultLaneConfiguration?.[index]?.state;
     if (nodeDefault) {
       return nodeDefault.toLowerCase();
-    }
-    if (incident?.decision?.laneConfiguration) {
-      return incident.decision.laneConfiguration.split(',')[index]?.trim().toLowerCase() || 'open';
     }
     return 'open';
   });
@@ -62,16 +63,22 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
       const parsedConfig = incident.decision?.laneConfiguration
         ? incident.decision.laneConfiguration.split(',').map(s => s.trim().toLowerCase())
         : [];
+      // Prioritize AI decision over node defaults
       const configStates = Array.from({ length: laneCount }, (_, idx) => {
+        if (parsedConfig[idx]) {
+          return parsedConfig[idx];
+        }
         const nodeDefault = incident?.node?.defaultLaneConfiguration?.[idx]?.state;
-        return nodeDefault ? nodeDefault.toLowerCase() : (parsedConfig[idx] || 'open');
+        return nodeDefault ? nodeDefault.toLowerCase() : 'open';
       });
       const configState = configStates[0] || 'open';
-      setSpeedLimit(incident?.node?.defaultSpeedLimit || incident.decision?.speedLimit || 40);
+      // Use AI decision speedLimit as the initial final decision
+      const aiSpeedLimit = incident.decision?.speedLimit || incident?.node?.defaultSpeedLimit || 40;
+      setSpeedLimit(aiSpeedLimit);
       setLaneConfiguration(configStates);
       setSelected(incident.decision?.actions || []);
       setDecisionType('CONFIRMED');
-      setTempSpeedLimit(incident?.node?.defaultSpeedLimit || incident.decision?.speedLimit || 40);
+      setTempSpeedLimit(aiSpeedLimit);
       setTempLaneConfig(configStates);
       setAllLanesState(configState || 'open');
       setLaneOverrideMode('per');
@@ -94,33 +101,33 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         .map((state, idx) => (state === 'blocked' ? idx + 1 : null))
         .filter(Boolean);
 
+      // Ensure laneConfiguration is a proper array
+      const finalLaneConfiguration = Array.isArray(laneConfiguration) ? laneConfiguration : [];
+
       const response = {
         incidentId: incident?.incidentId || '',
         nodeId: incident?.nodeId,
+        isAccident: true,
         status: finalDecisionType,
         actions: selected,
         speedLimit: Number(speedLimit),
         blockedLanes,
-        laneConfiguration: laneConfiguration.join(','),
+        laneStates: finalLaneConfiguration,
+        laneConfiguration: finalLaneConfiguration.join(','),
         message: `Admin ${finalDecisionType.toLowerCase()} - ${selected.length} actions`,
         timestamp: new Date().toISOString(),
       };
-      
-      // Send admin decision via HTTP to backend
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiUrl}/api/accident-decision`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(response),
+
+      console.log('📤 Sending admin confirmation:', {
+        incidentId: response.incidentId,
+        status: response.status,
+        speedLimit: response.speedLimit,
+        laneStatesLength: response.laneStates.length,
+        laneStates: response.laneStates
       });
-      
-      if (!res.ok) {
-        throw new Error(`Failed to send admin decision: ${res.status}`);
-      }
-      
-      console.log('✅ Admin decision sent successfully');
+
+      emitAdminAccidentResponse(response);
+      console.log('✅ Admin decision sent via socket');
       onDecision?.(response);
     } catch (e) {
       console.error('Confirm error', e);
@@ -135,27 +142,15 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
       const response = {
         incidentId: incident?.incidentId || '',
         nodeId: incident?.nodeId,
+        isAccident: false,
         status: 'REJECTED',
         actions: [],
         message: 'Admin rejected incident',
         timestamp: new Date().toISOString(),
       };
-      
-      // Send admin rejection via HTTP to backend
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiUrl}/api/accident-decision`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(response),
-      });
-      
-      if (!res.ok) {
-        throw new Error(`Failed to send admin decision: ${res.status}`);
-      }
-      
-      console.log('✅ Admin rejection sent successfully');
+
+      emitAdminAccidentResponse(response);
+      console.log('✅ Admin rejection sent via socket');
       onDecision?.(response);
     } catch (e) {
       console.error('Reject error', e);
@@ -242,13 +237,12 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         <AccidentDialogHeader incident={incident} timeString={timeString} />
 
         {/* Body - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-[16px] sm:px-[20px] py-[12px] sm:py-[16px] space-y-[14px] sm:space-y-[16px]">
+        <div className="flex-1 overflow-y-auto px-[20px] py-[16px] space-y-[16px] bg-[#fafafa]">
           
           {/* Top Row: Image + Override */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-[12px] sm:gap-[16px]">
-            <div className="space-y-[8px]">
-              <h4 className="font-bold text-[13px] sm:text-[14px] text-[#6a7282] uppercase tracking-[0.4px]">Incident Scene</h4>
-              <div className="aspect-video bg-[#e5e7eb] rounded-[8px] overflow-hidden shadow border border-[#d0d5dd]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[16px]">
+            <div>
+              <div className="aspect-video bg-[#e5e7eb] rounded-[8px] overflow-hidden border border-[#d1d5db]">
                 <MediaCarousel 
                   mediaList={incident?.mediaList || []}
                   accidentPolygon={incident?.accidentPolygon}
@@ -274,53 +268,39 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
             />
           </div>
 
-          {/* Bottom Row: AI + Decision */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[12px] sm:gap-[16px]">
-            <AiAnalysisCard aiData={aiData} />
-            <DecisionCard
-              originalSpeedLimit={defaultSpeedLimit}
-              newSpeedLimit={decisionData.speedLimit || defaultSpeedLimit}
-              originalLaneStates={originalLaneStates}
-              newLaneStates={laneConfigStates}
-              laneNames={laneNames}
-              statusConfig={statusConfig}
-            />
-          </div>
-
-          <FinalDecisionCard
-            speedLimit={speedLimit}
-            laneConfiguration={laneConfiguration}
+          {/* AI Analysis */}
+          <AiAnalysisCard aiData={aiData} />
+          
+          {/* Decision Comparison */}
+          <DecisionCard
+            originalSpeedLimit={defaultSpeedLimit}
+            newSpeedLimit={decisionData.speedLimit || defaultSpeedLimit}
+            originalLaneStates={originalLaneStates}
+            newLaneStates={laneConfigStates}
             laneNames={laneNames}
             statusConfig={statusConfig}
+            finalSpeedLimit={speedLimit}
+            finalLaneStates={laneConfiguration}
           />
-
-          {decisionType === 'MODIFIED' && (
-            <div className="bg-[#fef3c7] border border-[#fcd34d] p-[10px] rounded-[8px] text-[12px]">
-              <p className="font-bold text-[#92400e] flex items-center gap-[8px]">
-                <FontAwesomeIcon icon="exclamation-triangle" style={{ width: '12px', height: '12px' }} />
-                Changes will be submitted as MODIFIED
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
-        <Modal.Footer className="flex-shrink-0 border-t border-[#e5e7eb] bg-[#f7f8f9] px-[16px] sm:px-[20px] py-[12px] sm:py-[14px] gap-[10px] sm:gap-[12px]">
+        <Modal.Footer className="flex-shrink-0 border-t-2 border-[#e5e7eb] bg-white px-[20px] py-[16px] gap-[12px]">
           <Button 
             variant="secondary" 
             onClick={handleCancel}
-            className="flex items-center justify-center gap-[6px] px-[12px] py-[8px] rounded-[6px] font-bold text-[12px] sm:text-[13px]"
+            className="flex items-center justify-center gap-[8px] px-[20px] py-[10px] rounded-[6px] font-bold text-[13px] border-[#e5e7eb] hover:bg-[#f9fafb]"
           >
-            <FontAwesomeIcon icon="ban" style={{ width: '12px', height: '12px' }} />
+            <FontAwesomeIcon icon="ban" style={{ width: '14px', height: '14px' }} />
             Reject
           </Button>
           <Button 
             variant="primary" 
             onClick={handleConfirm}
-            className="flex items-center justify-center gap-[6px] px-[12px] py-[8px] rounded-[6px] font-bold text-[12px] sm:text-[13px]"
+            className="flex items-center justify-center gap-[8px] px-[20px] py-[10px] rounded-[6px] font-bold text-[13px] bg-[#16a34a] hover:bg-[#15803d]"
           >
-            <FontAwesomeIcon icon="check" style={{ width: '12px', height: '12px' }} />
-            {decisionType === 'MODIFIED' ? 'Confirm (Modified)' : 'Confirm'}
+            <FontAwesomeIcon icon="check" style={{ width: '14px', height: '14px' }} />
+            Confirm & Send
           </Button>
         </Modal.Footer>
       </Card>

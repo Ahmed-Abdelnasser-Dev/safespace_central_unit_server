@@ -305,12 +305,15 @@ class WebSocketManager {
     const ws = this.nodeConnections.get(nodeId);
     
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+      const payload = {
         type: 'command',
         commandId: command.commandId || 'update-config',
         data: command.data,
         timestamp: new Date().toISOString()
-      }));
+      };
+      
+      logger.info(`📡 Sending command to ${nodeId}: ${JSON.stringify(payload)}`);
+      ws.send(JSON.stringify(payload));
       
       logger.info(`Command sent to node ${nodeId}`);
       return true;
