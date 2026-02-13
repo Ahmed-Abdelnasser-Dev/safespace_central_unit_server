@@ -174,6 +174,12 @@ app.use("/api", require("./modules/incidents/incident.routes"));
 // Mount node routes
 app.use("/api/nodes", require("./modules/nodes/node.routes"));
 
+// Mount AI module routes (for testing/debugging)
+app.use("/api/ai", require("./modules/ai/ai.routes"));
+
+// Mount Decision module routes (for testing/debugging)
+app.use("/api/decision", require("./modules/decision/decision.routes"));
+
 // Mount auth routes
 // app.use('/api/auth', require('./modules/auth/auth.routes'));
 

@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const { logger } = require('./utils/logger');
 const wsManager = require('./utils/websocketManager');
+const { startHeartbeatMonitor } = require('./modules/nodes/node.service');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -22,10 +23,19 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 // Create HTTP server and Socket.IO instance
 const server = http.createServer(app);
 const io = new Server(server, {
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
+  serveClient: false,
+  polling: {
+    maxHttpBufferSize: 1e6,
+  },
   cors: {
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        logger.info('🔌 Socket.IO: Allowing connection with no origin');
+        return callback(null, true);
+      }
       
       // Check if origin is allowed
       const isAllowed = ALLOWED_ORIGINS.some(allowed => {
@@ -37,9 +47,10 @@ const io = new Server(server, {
       });
       
       if (isAllowed) {
+        logger.info(`🔌 Socket.IO: Allowing origin ${origin}`);
         callback(null, true);
       } else {
-        logger.warn(`Blocked origin: ${origin}`);
+        logger.warn(`🔌 Socket.IO: Blocked origin ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -54,9 +65,12 @@ app.set('io', io);
 wsManager.initialize(server);
 wsManager.startHealthCheck();
 
+// Start background heartbeat monitor for HTTP heartbeat endpoints
+startHeartbeatMonitor();
+
 // Socket.IO connection handler (for dashboard clients)
 io.on('connection', (socket) => {
-  logger.info(`Dashboard client connected: ${socket.id}`);
+  logger.info(`✅ Dashboard client connected: ${socket.id}`);
 
   // Listen for admin accident response from dashboard
   socket.on('admin_accident_response', async (data) => {

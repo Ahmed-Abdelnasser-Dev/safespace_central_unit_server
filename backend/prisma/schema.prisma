@@ -27,9 +27,12 @@ model Node {
   lanePolygons    Json     @default("[]")
   lanes           Json     @default("[]")
   laneStatus      String   @default("unknown")
-  speedLimit      Int      @default(80)
   
-  // Camera Configuration
+  // Default Road Configuration (editable from Node Maintainer)
+  defaultLaneCount Int     @default(4)
+  speedLimit       Int     @default(80)
+  
+  // Camera Configuration (editable from Node Maintainer)
   frameRate       Int      @default(30)
   resolution      String   @default("1920x1080")
   sensitivity     Float    @default(0.5)
@@ -54,4 +57,45 @@ model Node {
   lastUpdate      DateTime @default(now()) @updatedAt
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  
+  // Relations
+  incidents       Incident[]
+}
+
+model Incident {
+  id                    String   @id @default(uuid())
+  incidentId            String   @unique
+  
+  // Node Relationship
+  nodeId                String
+  node                  Node     @relation(fields: [nodeId], references: [nodeId])
+  
+  // Location Data
+  location              Json     // { latitude, longitude }
+  accidentPolygon       Json     // { points: [{x, y}], baseWidth, baseHeight }
+  
+  // Media Evidence
+  mediaUrls             Json     // Array of media file URLs
+  
+  // AI Analysis Results
+  severityLevel         Int      // 1-5 severity scale
+  
+  // Lane Analysis
+  blockedLanes          Json     // Array of blocked lane objects [{id, name}]
+  laneConfiguration     String   // e.g., "blocked,right,open,open"
+  
+  // Speed Control
+  originalSpeedLimit    Int
+  adjustedSpeedLimit    Int
+  
+  // Admin Decision
+  adminDecision         String?  // null until admin responds, then "reduce-speed", "normal-operation", etc.
+  adminDecisionTime     DateTime?
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([nodeId])
+  @@index([createdAt])
 }

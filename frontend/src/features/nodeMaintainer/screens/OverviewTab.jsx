@@ -3,7 +3,7 @@
  *
  * Comprehensive dashboard showing:
  * - Live camera feed (16:9 aspect ratio)
- * - Health metrics (CPU, Temperature, Network, Storage)
+ * - Health metrics (CPU, Memory, Network, Storage)
  * - Road status (lanes and speed limit)
  * - Node information (install date, heartbeat, IP, coordinates)
  *
@@ -17,7 +17,7 @@ import { useNodeVideoFeed } from "../../../hooks/useNodeVideoFeed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMicrochip,
-  faTemperatureHalf,
+  faMemory,
   faWifi,
   faDatabase,
   faCircleCheck,
@@ -249,10 +249,10 @@ export default function OverviewTab() {
           color="#3b82f6"
         />
         <MetricCard
-          label="Temperature"
-          value={node.health.temperature}
-          unit="°C"
-          icon={faTemperatureHalf}
+          label="Memory"
+          value={node.health.memory}
+          unit="%"
+          icon={faMemory}
           color="#f97316"
         />
         <MetricCard

@@ -25,7 +25,7 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
 
   const [points, setPoints] = useState(normalizePoints(polygon?.points));
   const [isDrawing, setIsDrawing] = useState(false);
-  const [polygonName, setPolygonName] = useState(polygon?.name || `Lane ${node.lanePolygons.length + 1}`);
+  const [polygonName, setPolygonName] = useState(polygon?.name || 'Lane Polygon');
   const [toolMode, setToolMode] = useState('draw'); // draw | edit
   const [selectedPointIndex, setSelectedPointIndex] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -240,13 +240,15 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
     const newPolygon = {
       id: polygon?.id || `poly-${Date.now()}`,
       name: polygonName,
+      laneNumber: polygon?.laneNumber, // Preserve lane association
       type: 'lane',
       points,
       baseWidth: canvas?.width || 0,
       baseHeight: canvas?.height || 0,
+      isEmpty: false, // Mark as defined
     };
 
-    const updatedPolygons = polygon
+    const updatedPolygons = polygon?.id
       ? node.lanePolygons.map((p) => (p.id === polygon.id ? newPolygon : p))
       : [...(node.lanePolygons || []), newPolygon];
 

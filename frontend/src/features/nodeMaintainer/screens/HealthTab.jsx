@@ -8,14 +8,43 @@
 
 import { useSelector } from 'react-redux';
 import { selectSelectedNode } from '../nodesSlice';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMicrochip, faTemperatureHalf, faWifi, faDatabase } from '@fortawesome/free-solid-svg-icons';
+import { faMicrochip, faMemory, faWifi, faDatabase } from '@fortawesome/free-solid-svg-icons';
 import MetricCard from '../components/cards/MetricCard';
 import SectionHeader from '../components/layout/SectionHeader';
+import HistoricalChartsGrid from '../components/grids/HistoricalChartsGrid';
 import { fontFamily } from '../styles/typography';
 
 function HealthTab() {
   const node = useSelector(selectSelectedNode);
+  const [cpuHistory, setCpuHistory] = useState([]);
+  const [temperatureHistory, setTemperatureHistory] = useState([]);
+
+  // Initialize and update historical data every minute
+  useEffect(() => {
+    if (!node) return;
+
+    // Initialize with current values
+    const initCpuHistory = Array(5).fill(node.health.cpu || 0);
+    const initTempHistory = Array(5).fill(node.health.temperature || 0);
+    setCpuHistory(initCpuHistory);
+    setTemperatureHistory(initTempHistory);
+
+    // Update every minute (60000ms)
+    const interval = setInterval(() => {
+      setCpuHistory(prev => {
+        const newHistory = [...prev.slice(1), node.health.cpu || 0];
+        return newHistory;
+      });
+      setTemperatureHistory(prev => {
+        const newHistory = [...prev.slice(1), node.health.temperature || 0];
+        return newHistory;
+      });
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [node]);
 
   if (!node) return <div className="p-[16px] text-[#6a7282]" style={{ fontFamily: 'Arimo, sans-serif' }}>Select a node</div>;
 
@@ -31,10 +60,10 @@ function HealthTab() {
           color="#3b82f6"
         />
         <MetricCard
-          label="Temperature"
-          value={node.health.temperature}
-          unit="°C"
-          icon={faTemperatureHalf}
+          label="Memory"
+          value={node.health.memory}
+          unit="%"
+          icon={faMemory}
           color="#f97316"
         />
         <MetricCard
@@ -56,13 +85,10 @@ function HealthTab() {
       {/* History Section - Line Charts */}
       <SectionHeader title="Historical Data" showDivider={true} />
 
-      <div className="space-y-[20px]">
-        <div className="rounded-[8px] border border-[#e5e7eb] bg-[#f7f8f9] px-[12px] py-[14px] text-[#6a7282]">
-          <span style={{ fontSize: 'clamp(12px, 1.2vw, 14px)', fontFamily }}>
-            No historical data yet
-          </span>
-        </div>
-      </div>
+      <HistoricalChartsGrid
+        cpuData={cpuHistory.length === 5 ? cpuHistory : Array(5).fill(node.health.cpu || 0)}
+        temperatureData={temperatureHistory.length === 5 ? temperatureHistory : Array(5).fill(node.health.temperature || 0)}
+      />
 
       
     </div>

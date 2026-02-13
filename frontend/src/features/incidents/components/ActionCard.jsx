@@ -8,8 +8,9 @@ import Badge from '../../../components/ui/Badge.jsx';
  * @param {string} props.description
  * @param {boolean} props.selected
  * @param {function} props.onToggle
+ * @param {string} props.badge - Source badge (e.g., 'AI', 'Decision')
  */
-function ActionCard({ title, description, selected, onToggle, recommended = true }) {
+function ActionCard({ title, description, selected, onToggle, recommended = true, badge = null }) {
   return (
     <div 
       onClick={onToggle}
@@ -19,7 +20,22 @@ function ActionCard({ title, description, selected, onToggle, recommended = true
       <div className="flex-1">
         <div className="flex items-center justify-between mb-1.5">
           <h4 className="text-base font-bold text-safe-text-dark">{title}</h4>
-          {recommended && <span className="px-2 py-0.5 rounded bg-safe-success/15 text-safe-success text-[10px] font-bold uppercase tracking-wide border border-safe-success/20">Recommended</span>}
+          <div className="flex gap-2 items-center">
+            {badge && (
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                badge === 'AI' 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                  : 'bg-purple-50 text-purple-700 border-purple-200'
+              }`}>
+                {badge}
+              </span>
+            )}
+            {recommended && (
+              <span className="px-2 py-0.5 rounded bg-safe-success/15 text-safe-success text-[10px] font-bold uppercase tracking-wide border border-safe-success/20">
+                Recommended
+              </span>
+            )}
+          </div>
         </div>
         <p className="text-sm text-safe-text-gray leading-relaxed font-medium">{description}</p>
       </div>

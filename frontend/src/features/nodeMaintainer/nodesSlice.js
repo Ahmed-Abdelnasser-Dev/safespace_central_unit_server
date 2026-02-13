@@ -22,15 +22,39 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const normalizeNode = (node) => {
   const nodeId = node.nodeId || node.id;
+  const lanes = node.roadRules?.lanes || [];
+  const existingPolygons = node.lanePolygons || [];
+  const location = node.location || {
+    latitude: typeof node.latitude === 'number' ? node.latitude : 0,
+    longitude: typeof node.longitude === 'number' ? node.longitude : 0,
+    address: node.streetName || 'Unknown location',
+  };
+  
+  // Sync polygons with lanes: ensure each lane has a polygon (can be empty)
+  const syncedPolygons = lanes.map(lane => {
+    const existingPolygon = existingPolygons.find(p => p.laneNumber === lane.id);
+    if (existingPolygon) {
+      return existingPolygon;
+    }
+    // Create empty placeholder for lane without polygon
+    return {
+      id: `poly-${Date.now()}-${lane.id}`,
+      name: lane.name,
+      laneNumber: lane.id,
+      type: 'lane',
+      points: [],
+      baseWidth: 0,
+      baseHeight: 0,
+      isEmpty: true,
+    };
+  });
+  
   return {
     id: nodeId,
+    nodeId,
     name: node.name || nodeId,
     status: node.status || 'offline',
-    location: node.location || {
-      latitude: 0,
-      longitude: 0,
-      address: 'Unknown location',
-    },
+    location,
     roadRules: node.roadRules || { lanes: [], speedLimit: 0 },
     nodeSpecs: node.nodeSpecs || {},
     health: node.health || {
@@ -41,7 +65,16 @@ const normalizeNode = (node) => {
       storage: 0,
       currentFps: 0,
     },
-    lanePolygons: node.lanePolygons || [],
+    lanePolygons: syncedPolygons,
+    defaultLaneCount: node.defaultLaneCount || lanes.length || 1,
+    speedLimit: node.speedLimit || 80,
+    streetName: node.streetName || location.address || 'Unknown location',
+    ipAddress: node.ipAddress || '0.0.0.0',
+    latitude: typeof node.latitude === 'number' ? node.latitude : location.latitude || 0,
+    longitude: typeof node.longitude === 'number' ? node.longitude : location.longitude || 0,
+    videoFeedUrl: node.videoFeedUrl || '',
+    frameRate: node.frameRate || 30,
+    resolution: node.resolution || '1920x1080',
     uptimeSec: node.uptimeSec || 0,
     firmwareVersion: node.firmwareVersion || 'unknown',
     modelVersion: node.modelVersion || 'unknown',
@@ -160,6 +193,20 @@ const nodesSlice = createSlice({
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
         node.roadRules.lanes.push(lane);
+        // Auto-create empty polygon placeholder for this lane
+        const polygonExists = node.lanePolygons.some(p => p.laneNumber === lane.id);
+        if (!polygonExists) {
+          node.lanePolygons.push({
+            id: `poly-${Date.now()}-${lane.id}`,
+            name: lane.name,
+            laneNumber: lane.id,
+            type: 'lane',
+            points: [],
+            baseWidth: 0,
+            baseHeight: 0,
+            isEmpty: true,
+          });
+        }
       }
     },
 
@@ -168,6 +215,8 @@ const nodesSlice = createSlice({
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
         node.roadRules.lanes = node.roadRules.lanes.filter(l => l.id !== laneId);
+        // Remove associated polygon when lane is deleted
+        node.lanePolygons = node.lanePolygons.filter(p => p.laneNumber !== laneId);
       }
     },
 

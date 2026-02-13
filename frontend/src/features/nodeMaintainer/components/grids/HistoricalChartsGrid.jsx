@@ -1,21 +1,21 @@
 /**
  * Reusable Historical Charts Grid Component
  * 
- * Displays CPU and Temperature history charts in a responsive grid
- * Shows 1 column on small screens, 2 columns on larger screens
+ * Displays CPU and Temperature history charts stacked vertically
+ * Charts update every minute with new data points
  * 
  * @component
  * @param {Array} cpuData - CPU history data array (5 values)
- * @param {Array} tempData - Temperature history data array (5 values)
+ * @param {Array} temperatureData - Temperature history data array (5 values)
  */
 
 import LineChart from '../charts/LineChart';
 
-function HistoricalChartsGrid({ cpuData, tempData }) {
-  const timeLabels = ['-40s', '-30s', '-20s', '-10s', 'now'];
+function HistoricalChartsGrid({ cpuData, temperatureData }) {
+  const timeLabels = ['-4m', '-3m', '-2m', '-1m', 'now'];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-[16px] lg:gap-[20px]">
+    <div className="flex flex-col gap-[16px] lg:gap-[20px]">
       <LineChart
         data={cpuData}
         color="#3b82f6"
@@ -24,7 +24,7 @@ function HistoricalChartsGrid({ cpuData, tempData }) {
       />
       
       <LineChart
-        data={tempData}
+        data={temperatureData}
         color="#f97316"
         title="Temperature History"
         timeLabels={timeLabels}

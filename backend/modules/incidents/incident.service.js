@@ -9,6 +9,9 @@
 
 const { logger } = require('../../utils/logger');
 const MobileAppNotificationService = require('../../utils/mobileAppNotificationService');
+const aiService = require('../ai/ai.service');
+const decisionService = require('../decision/decision.service');
+const { prisma } = require('../../utils/prisma');
 const dotenv = require('dotenv');
 dotenv.config();
 const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
@@ -78,35 +81,40 @@ function resolveDecision(incidentId, decision) {
 /**
  * Process accident detection data from Edge Node
  * 
- * This function implements the Central Unit's decision logic:
- * - Validates the incident data
- * - Calculates severity and affected areas
- * - Determines speed limit adjustments
- * - Prepares control commands for the Node
+ * NEW MODULAR FLOW:
+ * 1. Accident sent from node
+ * 2. AI Module analyzes and provides recommendations
+ * 3. Decision Module applies logic (uses AI results)
+ * 4. Combined results sent to dashboard
+ * 5. Dashboard user confirms/modifies/cancels
+ * 6. Response sent back to node
  * 
  * @param {Object} incidentData - Accident data from Edge Node
  * @param {string} incidentData.lat - Latitude coordinate
  * @param {string} incidentData.long - Longitude coordinate
  * @param {number} incidentData.lanNumber - Lane number where accident occurred
- * @param {number} incidentData.nodeId - ID of the reporting Edge Node
- * @param {string} incidentData.imagePath - Path to uploaded accident image
+ * @param {string} incidentData.nodeId - ID of the reporting Edge Node
+ * @param {Array<string>} incidentData.mediaPaths - Paths to uploaded media files
+ * @param {Object} incidentData.accidentPolygon - Accident polygon geometry
+ * @param {Object} io - Socket.IO instance for real-time updates
  * @returns {Object} Decision result with speed limit and node display instructions
  */
 const processAccidentDetection = async (incidentData, io) => {
-  const { lat, long, lanNumber, nodeId, mediaPaths = [] } = incidentData;
+  const { lat, long, lanNumber, nodeId, mediaPaths = [], accidentPolygon } = incidentData;
 
-  logger.info(`Processing accident from Node ${nodeId} at coordinates (${lat}, ${long}), Lane ${lanNumber}`);
+  logger.info(`🚨 INCIDENT DETECTED - Node ${nodeId} at (${lat}, ${long}), Lane ${lanNumber}`);
 
   // Generate unique incident ID
   const incidentId = `incident_${nodeId}_${Date.now()}`;
-    // Store incident data for later retrieval (for notification)
-    incidentDataMap.set(incidentId, {
-      lat,
-      long,
-      lanNumber,
-      nodeId,
-      timestamp: Date.now(),
-    });
+  
+  // Store incident data for later retrieval
+  incidentDataMap.set(incidentId, {
+    lat,
+    long,
+    lanNumber,
+    nodeId,
+    timestamp: Date.now(),
+  });
 
   // Build media list with type and URL
   const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
@@ -117,56 +125,232 @@ const processAccidentDetection = async (incidentData, io) => {
     return { url, type };
   });
 
-  // Prepare incident data for dashboard
-  const incidentPayload = {
+  let aiResults = null;
+  let decisionResults = null;
+  
+  try {
+    // ========================================
+    // STEP 1: AI MODULE - Analyze Accident
+    // ========================================
+    logger.info(`📊 STEP 1/2: AI Analysis for ${incidentId}`);
+    
+    aiResults = await aiService.analyzeAccident({
+      mediaPath: mediaPaths[0] || '',
+      mediaPaths,
+      accidentPolygon,
+      location: { lat, long }
+    });
+    
+    logger.info(`✅ AI Analysis Complete - Severity: ${aiResults.severity}/5, Type: ${aiResults.accidentType}, Confidence: ${(aiResults.confidence * 100).toFixed(1)}%`);
+    
+    // ========================================
+    // STEP 2: DECISION MODULE - Apply Logic
+    // ========================================
+    logger.info(`⚖️  STEP 2/2: Decision Analysis for ${incidentId}`);
+    
+    decisionResults = await decisionService.makeDecision({
+      nodeId,
+      lanNumber,
+      accidentPolygon,
+      location: { lat, long },
+      aiResults // Decision module uses AI results
+    });
+    
+    logger.info(`✅ Decision Complete - Blocked Lanes: ${decisionResults.blockedLanes.length}, Speed: ${decisionResults.speedLimit} km/h`);
+    
+    // ========================================
+    // STEP 3: PERSIST TO DATABASE
+    // ========================================
+    logger.info(`💾 Persisting incident ${incidentId} to database`);
+    
+    await prisma.incident.create({
+      data: {
+        incidentId,
+        nodeId: nodeId,
+        location: {
+          latitude: parseFloat(lat),
+          longitude: parseFloat(long),
+        },
+        accidentPolygon,
+        mediaUrls: mediaList,
+        severityLevel: aiResults.severity,
+        blockedLanes: decisionResults.blockedLanes,
+        laneConfiguration: decisionResults.laneConfiguration,
+        originalSpeedLimit: decisionResults.originalSpeedLimit,
+        adjustedSpeedLimit: decisionResults.speedLimit,
+        adminDecision: null, // Will be updated when admin responds
+        // Note: Full AI and Decision analysis stored in-memory for dashboard
+        // Only summary fields persisted to database
+      },
+    });
+    
+    logger.info(`✅ Incident ${incidentId} persisted to database`);
+    
+  } catch (error) {
+    logger.error(`❌ Error during AI/Decision analysis`, {
+      error: error.message,
+      stack: error.stack,
+      incidentId,
+    });
+    
+    // Use fallback values if analysis fails
+    aiResults = {
+      severity: 3,
+      confidence: 0.5,
+      accidentType: 'unknown',
+      vehicleCount: 1,
+      injuryRisk: 'medium',
+      recommendations: [],
+      mode: 'FALLBACK'
+    };
+    
+    decisionResults = {
+      blockedLanes: [{ id: lanNumber, name: `Lane ${lanNumber}`, laneNumber: lanNumber }],
+      laneConfiguration: '',
+      speedLimit: 60,
+      originalSpeedLimit: 80,
+      speedReduction: 20,
+      actions: ['MONITOR_SITUATION'],
+      nodeDisplay: { message: 'ACCIDENT AHEAD', speedLimit: 60 }
+    };
+  }
+
+  // ========================================
+  // STEP 4: FETCH NODE DATA & SEND TO DASHBOARD
+  // ========================================
+  // Get node data to include lane polygons and defaults
+  const node = await prisma.node.findUnique({
+    where: { nodeId },
+    select: {
+      nodeId: true,
+      name: true,
+      speedLimit: true,
+      defaultLaneCount: true,
+      lanePolygons: true,
+      lanes: true,
+      roadRules: true,  // ← Add roadRules to get full lane data
+      streetName: true,
+      latitude: true,
+      longitude: true,
+    }
+  });
+
+  // Read lanes from roadRules (same as decision module) - this is the source of truth
+  const roadRulesLanes = node?.roadRules?.lanes || [];
+  const laneDefaults = Array.isArray(node?.lanes) && node.lanes.length > 0 ? node.lanes : roadRulesLanes;
+  const laneCount = roadRulesLanes.length || node?.defaultLaneCount || laneDefaults.length || 4;
+  
+  logger.info('🔍 Node Lane Debug', {
+    nodeId,
+    nodeLanes: node?.lanes,
+    roadRulesLanes: roadRulesLanes,
+    roadRulesLanesLength: roadRulesLanes.length,
+    laneDefaultsLength: laneDefaults.length,
+    nodeDefaultLaneCount: node?.defaultLaneCount,
+    calculatedLaneCount: laneCount
+  });
+  
+  const defaultLaneConfiguration = laneDefaults.length > 0
+    ? laneDefaults.map((lane, index) => ({
+        lane: lane.id || index + 1,
+        name: lane.name || `Lane ${index + 1}`,
+        state: (lane.status || 'open').toLowerCase(),
+        type: lane.type || 'Standard'
+      }))
+    : Array.from({ length: laneCount }, (_, index) => ({
+        lane: index + 1,
+        name: `Lane ${index + 1}`,
+        state: 'open',
+        type: 'Standard'
+      }));
+  
+  logger.info('🔍 Default Lane Configuration Created', {
+    configLength: defaultLaneConfiguration.length,
+    config: defaultLaneConfiguration
+  });
+
+  const dashboardPayload = {
     incidentId,
     nodeId,
     latitude: parseFloat(lat),
     longitude: parseFloat(long),
     lanNumber,
-    lanes: [`Lane ${lanNumber}`],
-    locationName: `Highway Node ${nodeId}`,
+    locationName: node?.streetName || `Highway Node ${nodeId}`,
     mediaList,
     timestamp: Date.now(),
-    severity: 'CRITICAL',
+    
+    // Polygons for visualization
+    accidentPolygon,
+    nodePolygons: node?.lanePolygons || [],
+    
+    // Node defaults for UI
+    node: {
+      name: node?.name || `Node ${nodeId}`,
+      roadName: node?.streetName || `Highway Node ${nodeId}`,
+      defaultSpeedLimit: node?.roadRules?.speedLimit || node?.speedLimit || 80,
+      defaultLaneCount: laneCount,
+      defaultLaneConfiguration,
+      lanePolygons: node?.lanePolygons || [],
+    },
+    
+    // AI Analysis Results
+    ai: {
+      severity: aiResults.severity,
+      confidence: aiResults.confidence,
+      accidentType: aiResults.accidentType,
+      vehicleCount: aiResults.vehicleCount,
+      injuryRisk: aiResults.injuryRisk,
+      recommendations: aiResults.recommendations,
+      mode: aiResults.mode
+    },
+    
+    // Decision Results
+    decision: {
+      blockedLanes: decisionResults.blockedLanes,
+      laneConfiguration: decisionResults.laneConfiguration,
+      speedLimit: decisionResults.speedLimit,
+      originalSpeedLimit: decisionResults.originalSpeedLimit,
+      speedReduction: decisionResults.speedReduction,
+      actions: decisionResults.actions,
+      influencedByAI: decisionResults.influencedByAI
+    },
+    
+    // Combined severity for quick dashboard display
+    severity: aiResults.severity >= 4 ? 'CRITICAL' : aiResults.severity >= 3 ? 'HIGH' : 'MODERATE',
   };
 
-  // Emit to connected dashboard clients
-  logger.info(`Emitting accident event to dashboard: ${incidentId}`);
-  io.emit('accident-detected', incidentPayload);
+  logger.info(`📡 Emitting to dashboard: ${incidentId}`, {
+    severity: dashboardPayload.severity,
+    aiType: aiResults.accidentType,
+    blockedLanes: decisionResults.blockedLanes.length,
+    nodeDefaultLaneCount: dashboardPayload.node.defaultLaneCount,
+    nodeDefaultLaneConfigLength: dashboardPayload.node.defaultLaneConfiguration.length
+  });
+  
+  io.emit('accident-detected', dashboardPayload);
 
-  // Wait for admin decision
-  logger.info(`Waiting for admin decision on ${incidentId}...`);
-  const decision = await waitForDecision(incidentId);
-
-  logger.info(`Decision received for ${incidentId}: ${decision.status}`);
-
-  // Process decision
-  let speedLimit = null;
-  let nodeDisplayConfig = {
-    nodeId,
-    message: 'NORMAL',
-    displayMode: 'NORMAL',
-  };
-
-  if (decision.status === 'CONFIRMED') {
-    speedLimit = decision.actions.includes('reduce-speed') ? 40 : null;
-    const displayMessage = decision.actions.includes('block-routes')
-      ? `LANE ${lanNumber} BLOCKED - REDUCE SPEED`
-      : 'ACCIDENT - CAUTION';
-    nodeDisplayConfig = {
-      nodeId,
-      message: displayMessage,
-      displayMode: 'ALERT',
-    };
-  }
-
-  logger.info(`Decision applied for Node ${nodeId}: Speed Limit = ${speedLimit || 'unchanged'} km/h`);
+  // ========================================
+  // STEP 5: RETURN IMMEDIATELY TO NODE
+  // ========================================
+  // Node can continue its operations while admin makes decision
+  // Admin decision will be applied via separate HTTP endpoint
+  logger.info(`✅ Accident analysis complete for ${incidentId}. Waiting for admin decision asynchronously...`);
 
   return {
-    speedLimit,
-    nodeDisplay: nodeDisplayConfig,
-    decision,
+    status: 'success',
+    incidentId,
+    message: 'Accident detected and forwarded to admin dashboard',
+    aiResults: {
+      severity: aiResults.severity,
+      type: aiResults.accidentType,
+      confidence: aiResults.confidence,
+      injuryRisk: aiResults.injuryRisk
+    },
+    decisionResults: {
+      blockedLanes: decisionResults.blockedLanes.length,
+      speedLimit: decisionResults.speedLimit,
+      originalSpeedLimit: decisionResults.originalSpeedLimit
+    }
   };
 };
 
@@ -207,8 +391,9 @@ module.exports.isRecentMobileNotification = isRecentMobileNotification;
 
 /**
  * Process operator/admin decision for an accident.
- * Logs audit trail and prepares control responses to nodes.
+ * Logs audit trail, persists decision to database, and prepares control responses to nodes.
  * @param {Object} decisionData
+ * @param {string} decisionData.incidentId
  * @param {number} decisionData.nodeId
  * @param {('CONFIRMED'|'REJECTED')} decisionData.status
  * @param {string[]} [decisionData.actions]
@@ -216,13 +401,31 @@ module.exports.isRecentMobileNotification = isRecentMobileNotification;
  * @returns {Object} structured decision result
  */
 async function processAccidentDecision(decisionData) {
-  const { incidentId, nodeId, status, actions = [], message } = decisionData;
+  const { incidentId, nodeId, status, actions = [], message, io } = decisionData;
 
   // Resolve the pending decision
   const resolved = resolveDecision(incidentId, { status, actions, message });
   
   if (!resolved) {
     logger.warn(`No pending decision found for incident ${incidentId}`);
+  }
+
+  // Persist admin decision to database
+  try {
+    await prisma.incident.update({
+      where: { incidentId },
+      data: {
+        adminDecision: status,
+        adminDecisionTime: new Date(),
+      },
+    });
+    logger.info(`[ADMIN DECISION] Persisted to database: ${incidentId} - ${status}`);
+  } catch (dbError) {
+    logger.error(`[ADMIN DECISION] Failed to persist decision to database`, {
+      error: dbError.message,
+      incidentId,
+    });
+    // Continue with decision processing even if DB update fails
   }
 
   if (status === 'REJECTED') {
@@ -265,6 +468,21 @@ async function processAccidentDecision(decisionData) {
     } else {
       logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
     }
+
+  // ========================================
+  // EMIT DECISION CONFIRMATION TO DASHBOARD
+  // ========================================
+  if (io) {
+    io.emit('decision-confirmed', {
+      incidentId,
+      nodeId,
+      status,
+      message,
+      timestamp: new Date().toISOString(),
+      actions
+    });
+    logger.info(`📢 Decision confirmation emitted for incident ${incidentId}: ${status}`);
+  }
 
   return {
     incidentId,

@@ -2,16 +2,16 @@
  * Reusable Health Metrics Grid Component
  * 
  * Displays a responsive grid of health metric cards
- * Shows CPU, Temperature, Network, and Storage in 2x2 grid (responsive columns)
+ * Shows CPU, Memory, Network, and Storage in 2x2 grid (responsive columns)
  * 
  * @component
- * @param {Object} health - Health data object with cpu, temperature, network, storage
+ * @param {Object} health - Health data object with cpu, memory, network, storage
  */
 
 import MetricCard from '../cards/MetricCard';
 import { 
   faMicrochip, 
-  faTemperatureHalf, 
+  faMemory, 
   faWifi, 
   faDatabase 
 } from '@fortawesome/free-solid-svg-icons';
@@ -26,10 +26,10 @@ function HealthMetricsGrid({ health }) {
       color: '#3b82f6'
     },
     {
-      label: 'Temperature',
-      value: health.temperature,
-      unit: '°C',
-      icon: faTemperatureHalf,
+      label: 'Memory',
+      value: health.memory,
+      unit: '%',
+      icon: faMemory,
       color: '#f97316'
     },
     {

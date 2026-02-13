@@ -22,33 +22,24 @@ function EditNodeModal({ isOpen, onClose, onSave, node, isLoading = false, error
     name: '',
     nodeId: '',
     ipAddress: '',
-    streetName: '',
+    address: '',
     latitude: 0,
     longitude: 0,
     videoFeedUrl: '',
-    frameRate: 30,
-    resolution: '1920x1080',
-    sensitivity: 0.5,
-    minObjectSize: 10,
-    speedLimit: 80,
   });
 
   // Initialize form with node data
   useEffect(() => {
     if (node) {
+      const location = node.location || {};
       setFormData({
         name: node.name || '',
-        nodeId: node.nodeId || '',
+        nodeId: node.nodeId || node.id || '',
         ipAddress: node.ipAddress || '',
-        streetName: node.streetName || '',
-        latitude: node.latitude || 0,
-        longitude: node.longitude || 0,
+        address: location.address || node.streetName || '',
+        latitude: typeof node.latitude === 'number' ? node.latitude : (location.latitude || 0),
+        longitude: typeof node.longitude === 'number' ? node.longitude : (location.longitude || 0),
         videoFeedUrl: node.videoFeedUrl || '',
-        frameRate: node.frameRate || 30,
-        resolution: node.resolution || '1920x1080',
-        sensitivity: node.sensitivity || 0.5,
-        minObjectSize: node.minObjectSize || 10,
-        speedLimit: node.speedLimit || 80,
       });
     }
   }, [node, isOpen]);
@@ -63,7 +54,19 @@ function EditNodeModal({ isOpen, onClose, onSave, node, isLoading = false, error
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onSave(formData);
+    await onSave({
+      name: formData.name,
+      ipAddress: formData.ipAddress,
+      videoFeedUrl: formData.videoFeedUrl,
+      streetName: formData.address,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      location: {
+        address: formData.address,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+      },
+    });
   };
 
   return (
@@ -118,7 +121,7 @@ function EditNodeModal({ isOpen, onClose, onSave, node, isLoading = false, error
                   name="nodeId"
                   value={formData.nodeId}
                   onChange={handleChange}
-                  disabled={isLoading}
+                  disabled
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                   placeholder="safe-space-node-001"
                 />
@@ -126,12 +129,12 @@ function EditNodeModal({ isOpen, onClose, onSave, node, isLoading = false, error
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Street Name
+                  Location Address
                 </label>
                 <input
                   type="text"
-                  name="streetName"
-                  value={formData.streetName}
+                  name="address"
+                  value={formData.address}
                   onChange={handleChange}
                   disabled={isLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
@@ -211,95 +214,7 @@ function EditNodeModal({ isOpen, onClose, onSave, node, isLoading = false, error
             </div>
           </div>
 
-          {/* Camera Configuration */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Camera Configuration</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Frame Rate (FPS)
-                </label>
-                <input
-                  type="number"
-                  name="frameRate"
-                  value={formData.frameRate}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  min="1"
-                  max="120"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Resolution
-                </label>
-                <input
-                  type="text"
-                  name="resolution"
-                  value={formData.resolution}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                  placeholder="1920x1080"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sensitivity (0-1)
-                </label>
-                <input
-                  type="number"
-                  name="sensitivity"
-                  value={formData.sensitivity}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Min Object Size (px)
-                </label>
-                <input
-                  type="number"
-                  name="minObjectSize"
-                  value={formData.minObjectSize}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Road Configuration */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Road Configuration</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Speed Limit (km/h)
-                </label>
-                <input
-                  type="number"
-                  name="speedLimit"
-                  value={formData.speedLimit}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-            </div>
-          </div>
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">

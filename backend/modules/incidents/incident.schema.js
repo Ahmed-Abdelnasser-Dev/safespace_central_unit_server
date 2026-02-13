@@ -31,8 +31,69 @@ const accidentDetectedSchema = z.object({
 
     nodeId: z.string({
       required_error: 'Node ID is required',
-    }).refine((val) => !isNaN(parseInt(val, 10)), {
-      message: 'nodeId must be a valid integer',
+    }).min(1, 'Node ID cannot be empty'),
+
+    accidentPolygon: z.string({
+      required_error: 'Accident polygon is required for decision analysis',
+    }).transform((val, ctx) => {
+      try {
+        const parsed = JSON.parse(val);
+        
+        // Validate structure
+        if (!parsed.points || !Array.isArray(parsed.points)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must contain a points array',
+          });
+          return z.NEVER;
+        }
+        
+        if (parsed.points.length < 3) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must have at least 3 points',
+          });
+          return z.NEVER;
+        }
+        
+        // Validate each point has x and y coordinates
+        const invalidPoint = parsed.points.find(p => 
+          typeof p.x !== 'number' || typeof p.y !== 'number'
+        );
+        
+        if (invalidPoint) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'All points must have numeric x and y coordinates',
+          });
+          return z.NEVER;
+        }
+        
+        // Validate baseWidth and baseHeight
+        if (typeof parsed.baseWidth !== 'number' || parsed.baseWidth <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must have a valid baseWidth',
+          });
+          return z.NEVER;
+        }
+        
+        if (typeof parsed.baseHeight !== 'number' || parsed.baseHeight <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must have a valid baseHeight',
+          });
+          return z.NEVER;
+        }
+        
+        return parsed;
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `accidentPolygon must be valid JSON. Received: ${val.substring(0, 100)}... Error: ${error.message}`,
+        });
+        return z.NEVER;
+      }
     }),
   }),
   files: z.array(z.any(), {
@@ -43,23 +104,38 @@ const accidentDetectedSchema = z.object({
 
 /**
  * Schema for accident decision review (admin/operator confirmation)
- * Validates actions selected or rejection status.
+ * Supports: CONFIRMED, MODIFIED, REJECTED
+ * Validates actions, speed limits, and lane configurations.
  */
 const accidentDecisionSchema = z.object({
   body: z.object({
     incidentId: z.string({ required_error: 'incidentId is required' }),
     nodeId: z.number({ required_error: 'nodeId is required' }).int().positive(),
-    status: z.enum(['CONFIRMED', 'REJECTED']),
-    actions: z.array(z.enum(['reduce-speed', 'block-routes', 'call-emergency'])).optional(),
+    status: z.enum(['CONFIRMED', 'MODIFIED', 'REJECTED'], {
+      required_error: 'status must be CONFIRMED, MODIFIED, or REJECTED'
+    }),
+    actions: z.array(z.string()).optional(), // Array of action strings
     message: z.string().optional(),
+    speedLimit: z.number().int().min(20).max(200).optional(), // Modified speed limit
+    laneConfiguration: z.string().optional(), // Modified lane config (e.g., "open,blocked,right")
   }).refine((data) => {
-    // If confirmed must have at least one action
-    if (data.status === 'CONFIRMED') return Array.isArray(data.actions) && data.actions.length > 0;
-    // If rejected must include message
-    if (data.status === 'REJECTED') return typeof data.message === 'string' && data.message.length > 2;
+    // CONFIRMED: must have at least one action
+    if (data.status === 'CONFIRMED') {
+      return Array.isArray(data.actions) && data.actions.length > 0;
+    }
+    // REJECTED: must include message
+    if (data.status === 'REJECTED') {
+      return typeof data.message === 'string' && data.message.length > 2;
+    }
+    // MODIFIED: should have some modified data
+    if (data.status === 'MODIFIED') {
+      return data.speedLimit !== undefined || 
+             data.laneConfiguration !== undefined || 
+             (Array.isArray(data.actions) && data.actions.length > 0);
+    }
     return false;
   }, {
-    message: 'Invalid decision payload: CONFIRMED requires actions; REJECTED requires message.'
+    message: 'Invalid decision: CONFIRMED needs actions, REJECTED needs message, MODIFIED needs at least one modification.'
   }),
 });
 

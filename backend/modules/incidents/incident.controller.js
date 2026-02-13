@@ -28,19 +28,28 @@ const mobileAppNotificationService = new MobileAppNotificationService(process.en
  */
 const accidentDetected = catchAsync(async (req, res, next) => {
   // Extract text fields from multipart form
-  const { lat, long, lanNumber, nodeId } = req.body;
+  const { lat, long, lanNumber, nodeId, accidentPolygon } = req.body;
 
   // Validate that required fields are present
-  if (!lat || !long || !lanNumber || !nodeId) {
-    return next(new AppError('Missing required fields: lat, long, lanNumber, nodeId', 400));
+  if (!lat || !long || !lanNumber || !nodeId || !accidentPolygon) {
+    return next(new AppError('Missing required fields: lat, long, lanNumber, nodeId, accidentPolygon', 400));
   }
 
-  // Parse integer fields
+  // Parse lane number to integer (nodeId is a string identifier)
   const parsedLanNumber = parseInt(lanNumber, 10);
-  const parsedNodeId = parseInt(nodeId, 10);
 
-  if (isNaN(parsedLanNumber) || isNaN(parsedNodeId)) {
-    return next(new AppError('lanNumber and nodeId must be valid integers', 400));
+  if (isNaN(parsedLanNumber)) {
+    return next(new AppError('lanNumber must be a valid integer', 400));
+  }
+
+  // Parse accident polygon JSON (comes as string from form-data)
+  let parsedAccidentPolygon;
+  try {
+    parsedAccidentPolygon = typeof accidentPolygon === 'string' 
+      ? JSON.parse(accidentPolygon) 
+      : accidentPolygon;
+  } catch (error) {
+    return next(new AppError('accidentPolygon must be valid JSON', 400));
   }
 
   // Validate at least one media file
@@ -53,8 +62,9 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     lat,
     long,
     lanNumber: parsedLanNumber,
-    nodeId: parsedNodeId,
+    nodeId, // Keep as string - matches database schema
     mediaPaths: req.files.map(f => f.path),
+    accidentPolygon: parsedAccidentPolygon, // Use parsed object
   };
 
   // Notification to Mobile App Server will be sent after admin confirmation, not here.
@@ -65,7 +75,7 @@ const accidentDetected = catchAsync(async (req, res, next) => {
   const result = await incidentService.processAccidentDetection(incidentData, io);
 
   // Log successful processing
-  logger.info(`Accident processed successfully from Node ${parsedNodeId}`);
+  logger.info(`Accident processed successfully from Node ${nodeId}`);
 
   // Send success response with decision results
   res.status(200).json({
@@ -81,12 +91,14 @@ module.exports = {
   accidentDetected,
   accidentDecision: catchAsync(async (req, res) => {
     const { incidentId, nodeId, status, actions, message } = req.body;
+    const io = req.app.get('io');
     const decision = await incidentService.processAccidentDecision({
       incidentId,
       nodeId: Number(nodeId),
       status,
       actions,
       message,
+      io // Pass io for real-time notifications
     });
     logger.info(`Decision recorded for incident ${incidentId}: ${status}`);
     res.status(200).json({ success: true, decision, receivedAt: new Date().toISOString() });

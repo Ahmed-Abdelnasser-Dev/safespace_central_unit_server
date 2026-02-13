@@ -14,6 +14,7 @@ import {
   updateLaneStatus,
   addLane,
   removeLane,
+  updateNode,
 } from "../nodesSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -146,9 +147,11 @@ function RoadConfigTab() {
 
   const handleSaveConfig = () => {
     dispatch(
-      updateNodeRoadRules({
+      updateNode({
         nodeId: node.id,
-        roadRules: { speedLimit },
+        updates: {
+          roadRules: { ...node.roadRules, speedLimit },
+        },
       }),
     );
     setHasChanges(false);

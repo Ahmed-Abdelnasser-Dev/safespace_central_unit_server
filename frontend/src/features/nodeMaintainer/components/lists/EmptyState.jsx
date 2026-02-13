@@ -17,11 +17,11 @@ function EmptyState({
   className = '' 
 }) {
   return (
-    <div className={`text-center py-[32px] ${className}`}>
+    <div className={`text-center py-[32px]  ${className}`}>
       {icon && (
         <FontAwesomeIcon 
           icon={icon} 
-          className="text-[#d0d5dd] mb-[12px] block" 
+          className="text-[#d0d5dd] mb-[12px] block " 
           style={{ width: '32px', height: '32px' }} 
         />
       )}

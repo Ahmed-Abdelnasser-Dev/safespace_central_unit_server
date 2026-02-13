@@ -32,7 +32,9 @@ export default function useMapAutoCenter(mapRef, nodes, selectedNodeId) {
       return;
     }
 
-    const fallbackNode = nodes.find((node) => node.status === 'online') || nodes[0];
+    const fallbackNode =
+      nodes.find((node) => node.status === 'online') ||
+      nodes.find((node) => node.status !== 'online');
     if (fallbackNode && lastFlyToNodeIdRef.current !== fallbackNode.id) {
       flyToNode(fallbackNode);
     }

@@ -49,6 +49,7 @@ async function processHeartbeat(heartbeatData) {
     // Road/Lane data
     lanes,
     laneStatus,
+    defaultLaneCount,
     speedLimit,
     // System data
     streetName,
@@ -65,9 +66,10 @@ async function processHeartbeat(heartbeatData) {
   }
 
   // Build update object with all new fields
+  // Use server time for lastHeartbeat to avoid clock skew issues
   const updateData = {
     status,
-    lastHeartbeat: new Date(timestamp),
+    lastHeartbeat: new Date(), // Use server time, not node's timestamp
     lastUpdate: new Date(),
     uptimeSec,
     health: health || existingNode.health,
@@ -88,7 +90,7 @@ async function processHeartbeat(heartbeatData) {
     ...(longitude !== undefined && { longitude }),
     ...(ipAddress && { ipAddress }),
     ...(videoFeedUrl && { videoFeedUrl }),
-    ...(lanes && { lanes }),
+    ...(lanes && { lanes, defaultLaneCount: lanes.length }),
     ...(laneStatus && { laneStatus }),
     ...(speedLimit !== undefined && { speedLimit }),
     ...(streetName && { streetName }),
@@ -177,6 +179,7 @@ async function registerNode(nodeData) {
       },
       lanes: [{ id: 1, name: 'Lane 1', type: 'Main Lane', status: 'open' }],
       laneStatus: 'unknown',
+      defaultLaneCount: 1,
       speedLimit: 80,
       frameRate: 30,
       resolution: '1920x1080',
@@ -199,34 +202,59 @@ async function registerNode(nodeData) {
 }
 
 /**
+ * Check for stale heartbeats and mark nodes as offline
+ * This runs as a background job to avoid blocking API requests
+ */
+async function checkHeartbeatTimeouts() {
+  try {
+    const nodes = await prisma.node.findMany({
+      where: { status: 'online' }
+    });
+    
+    const now = Date.now();
+    for (const node of nodes) {
+      if (node.lastHeartbeat) {
+        const lastHeartbeatTime = new Date(node.lastHeartbeat).getTime();
+        const timeSinceHeartbeat = now - lastHeartbeatTime;
+        
+        if (timeSinceHeartbeat > HEARTBEAT_TIMEOUT) {
+          logger.warn(`Node ${node.nodeId} heartbeat timeout (${Math.round(timeSinceHeartbeat/1000)}s). Marking as offline.`);
+          await prisma.node.update({
+            where: { nodeId: node.nodeId },
+            data: {
+              status: 'offline',
+              lastUpdate: new Date(),
+            },
+          });
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Error checking heartbeat timeouts:', error);
+  }
+}
+
+/**
+ * Start background job to check for heartbeat timeouts
+ * Runs every 30 seconds
+ */
+function startHeartbeatMonitor() {
+  // Run immediately
+  checkHeartbeatTimeouts();
+  
+  // Then run every 30 seconds
+  setInterval(checkHeartbeatTimeouts, 30000);
+  
+  logger.info('Node heartbeat monitor started (checking every 30s)');
+}
+
+/**
  * Get all registered nodes
  * 
  * @returns {Array} List of all nodes
  */
 async function getAllNodes() {
   const nodes = await prisma.node.findMany();
-  
-  // Check for stale heartbeats and mark as offline
-  const now = Date.now();
-  for (const node of nodes) {
-    if (node.lastHeartbeat) {
-      const lastHeartbeatTime = new Date(node.lastHeartbeat).getTime();
-      const timeSinceHeartbeat = now - lastHeartbeatTime;
-      
-      if (timeSinceHeartbeat > HEARTBEAT_TIMEOUT && node.status === 'online') {
-        logger.warn(`Node ${node.nodeId} heartbeat timeout. Marking as offline.`);
-        await prisma.node.update({
-          where: { nodeId: node.nodeId },
-          data: {
-            status: 'offline',
-            lastUpdate: new Date(),
-          },
-        });
-        node.status = 'offline';
-      }
-    }
-  }
-
   return nodes;
 }
 
@@ -288,6 +316,7 @@ async function updateNodeConfig(nodeId, updates) {
       // Route/Lane updates
       lanes: updates.lanes || node.lanes,
       laneStatus: updates.laneStatus || node.laneStatus,
+      defaultLaneCount: typeof updates.defaultLaneCount === 'number' ? updates.defaultLaneCount : node.defaultLaneCount,
       speedLimit: typeof updates.speedLimit === 'number' ? updates.speedLimit : node.speedLimit,
       // Camera config
       frameRate: typeof updates.frameRate === 'number' ? updates.frameRate : node.frameRate,
@@ -340,4 +369,5 @@ module.exports = {
   getNodeById,
   updateNodeConfig,
   deleteNode,
+  startHeartbeatMonitor,
 };

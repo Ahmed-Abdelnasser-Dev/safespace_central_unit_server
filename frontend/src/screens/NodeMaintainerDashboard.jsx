@@ -92,13 +92,6 @@ export default function NodeMaintainerDashboard() {
         return <PolygonsTab onEditPolygon={(poly) => {
           setEditingPolygon(poly);
           setShowPolygonEditor(true);
-        }} onAddPolygon={() => {
-          setEditingPolygon(null);
-          setShowPolygonEditor(true);
-        }} onDeletePolygon={(poly) => {
-          if (!selectedNode) return;
-          const updatedPolygons = (selectedNode.lanePolygons || []).filter(p => p.id !== poly.id);
-          dispatch(updateNodePolygons({ nodeId: selectedNode.id, lanePolygons: updatedPolygons }));
         }} />;
       default:
         return null;
