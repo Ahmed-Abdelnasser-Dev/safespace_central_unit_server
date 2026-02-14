@@ -1,17 +1,41 @@
+import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 /**
  * Base Table Component
- * Reusable table structure with flexible column spacing
- * 
- * @param {Object} props
- * @param {Array} props.columns - Column definitions
- * @param {Array} props.data - Table data
- * @param {Function} props.onRowClick - Optional row click handler
- * @param {Function} props.renderCell - Custom cell renderer
- * @param {string} props.className - Additional classes
+ * Reusable table structure with flexible column spacing and working sort
  */
 function UsersTable({ columns, data, onRowClick, renderCell, className = '' }) {
+  const [sortKey, setSortKey]   = useState(null);
+  const [sortDir, setSortDir]   = useState('asc'); // 'asc' | 'desc'
+
+  const handleSort = (column) => {
+    if (!column.sortable) return;
+    if (sortKey === column.key) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(column.key);
+      setSortDir('asc');
+    }
+  };
+
+  // Sort data client-side by the sortable fields that have plain string/date values
+  const sortedData = [...(data || [])].sort((a, b) => {
+    if (!sortKey) return 0;
+    let aVal = a[sortKey];
+    let bVal = b[sortKey];
+    // Handle nested role object
+    if (sortKey === 'role') { aVal = a.role?.name || ''; bVal = b.role?.name || ''; }
+    if (sortKey === 'status') { aVal = a.isActive ? 'Active' : 'Inactive'; bVal = b.isActive ? 'Active' : 'Inactive'; }
+    if (sortKey === 'lastActive') { aVal = a.lastLoginAt || ''; bVal = b.lastLoginAt || ''; }
+    if (sortKey === 'created') { aVal = a.createdAt || ''; bVal = b.createdAt || ''; }
+    if (sortKey === 'name') { aVal = a.fullName || a.username || ''; bVal = b.fullName || b.username || ''; }
+    if (aVal == null) aVal = '';
+    if (bVal == null) bVal = '';
+    const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   return (
     <div className={`mt-6 bg-white rounded-xl border border-safe-border overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
@@ -26,17 +50,25 @@ function UsersTable({ columns, data, onRowClick, renderCell, className = '' }) {
                     ${index === 0 ? 'pl-6' : ''} 
                     ${index === columns.length - 1 ? 'pr-6' : ''}
                     ${column.headerClass || ''}
+                    ${column.sortable ? 'cursor-pointer select-none' : ''}
                   `}
                   style={{ width: column.width || 'auto' }}
+                  onClick={() => handleSort(column)}
                 >
-                  <div className={`flex items-center gap-2 ${
+                  <div className={`flex items-center gap-1.5 ${
                   column.headerClass?.includes('text-right') ? 'justify-end' : ''}`}>
                     {column.label}
                     {column.sortable && (
-                      <FontAwesomeIcon 
-                        icon="sort" 
-                        className="text-xs text-safe-text-gray/50 cursor-pointer hover:text-safe-text-gray transition-colors" 
-                      />
+                      <span className="flex flex-col gap-px">
+                        <FontAwesomeIcon
+                          icon="chevron-up"
+                          className={`text-[8px] leading-none ${sortKey === column.key && sortDir === 'asc' ? 'text-safe-blue-btn' : 'text-safe-text-gray/40'}`}
+                        />
+                        <FontAwesomeIcon
+                          icon="chevron-down"
+                          className={`text-[8px] leading-none ${sortKey === column.key && sortDir === 'desc' ? 'text-safe-blue-btn' : 'text-safe-text-gray/40'}`}
+                        />
+                      </span>
                     )}
                   </div>
                 </th>
@@ -46,8 +78,8 @@ function UsersTable({ columns, data, onRowClick, renderCell, className = '' }) {
 
           {/* Table Body */}
           <tbody className="divide-y divide-safe-border">
-            {data && data.length > 0 ? (
-              data.map((row, rowIndex) => (
+            {sortedData && sortedData.length > 0 ? (
+              sortedData.map((row, rowIndex) => (
                 <tr
                   key={row.id || rowIndex}
                   className={`transition-colors ${

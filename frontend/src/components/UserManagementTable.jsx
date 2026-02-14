@@ -67,10 +67,15 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
     setIsModalOpen(false);
   };
 
-  const handleModalSubmit = async (updatedUser) => {
-    console.log('Updated user:', updatedUser);
-    handleModalClose();
-    if (onRefresh) onRefresh();
+  const handleModalSubmit = async (updatedData) => {
+    try {
+      await userAPI.updateUser(selectedUser.id, updatedData);
+      alert('User updated successfully');
+      handleModalClose();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      alert(error?.response?.data?.message || 'Failed to update user');
+    }
   };
 
   const handleDeactivate = async (user) => {
@@ -196,7 +201,7 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
             </button>
             <button
               onClick={() => handleDeactivate(user)}
-              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors min-w-[80px] text-center"
             >
               {user.isActive ? 'Deactivate' : 'Activate'}
             </button>
@@ -254,6 +259,7 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
         userData={selectedUser}
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
+        isAdmin={true}
       />  
     </>
 

@@ -43,8 +43,8 @@ function UserManagementButtons({ onSearch, onRoleFilter, onStatusFilter, current
             await userAPI.createUser(data);
             alert('User created successfully');
             setIsModalOpen(false);
-            // Refresh the users list by triggering a search with empty string
-            onSearch('');
+            // Trigger re-fetch
+            onSearch(searchTerm);
         } catch (error) {
             console.error('Failed to create user:', error);
             alert(error.response?.data?.message || 'Failed to create user');
@@ -104,10 +104,10 @@ function UserManagementButtons({ onSearch, onRoleFilter, onStatusFilter, current
                             setShowRoleDropdown(!showRoleDropdown);
                             setShowStatusDropdown(false);
                         }}
-                        className="text-sm pl-3 py-2.5 w-[150px] rounded-lg border bg-safe-white border-safe-border flex items-center justify-between text-safe-text-gray hover:bg-safe-bg transition-colors"
+                        className="text-sm pl-3 pr-3 py-2.5 w-[150px] rounded-lg border bg-safe-white border-safe-border flex items-center justify-between gap-2 text-safe-text-gray hover:bg-safe-bg transition-colors"
                     >
-                        {getRoleLabel()} 
-                        <FontAwesomeIcon icon="angle-down" className="text-sm" />
+                        <span className="truncate">{getRoleLabel()}</span>
+                        <FontAwesomeIcon icon="angle-down" className="text-xs flex-shrink-0" />
                     </button>
                     {showRoleDropdown && (
                         <div className="absolute top-full mt-1 w-[200px] bg-white border border-safe-border rounded-lg shadow-lg z-10">
@@ -134,10 +134,10 @@ function UserManagementButtons({ onSearch, onRoleFilter, onStatusFilter, current
                             setShowStatusDropdown(!showStatusDropdown);
                             setShowRoleDropdown(false);
                         }}
-                        className="text-sm pl-3 py-2.5 w-[150px] rounded-lg border bg-safe-white border-safe-border flex items-center justify-between text-safe-text-gray hover:bg-safe-bg transition-colors"
+                        className="text-sm pl-3 pr-3 py-2.5 w-[150px] rounded-lg border bg-safe-white border-safe-border flex items-center justify-between gap-2 text-safe-text-gray hover:bg-safe-bg transition-colors"
                     >
-                        {getStatusLabel()} 
-                        <FontAwesomeIcon icon="angle-down" className="text-sm" />
+                        <span className="truncate">{getStatusLabel()}</span>
+                        <FontAwesomeIcon icon="angle-down" className="text-xs flex-shrink-0" />
                     </button>
                     {showStatusDropdown && (
                         <div className="absolute top-full mt-1 w-[150px] bg-white border border-safe-border rounded-lg shadow-lg z-10">
