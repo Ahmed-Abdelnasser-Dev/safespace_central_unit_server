@@ -126,12 +126,15 @@ export const updateUserProfile = createAsyncThunk(
 // Initial State
 // ============================================================================
 
+const storedUser = JSON.parse(sessionStorage.getItem('user')) || null;
+
 const initialState = {
-  user: JSON.parse(sessionStorage.getItem('user')) || null,
+  user: storedUser,
   isAuthenticated: !!sessionStorage.getItem('accessToken'),
   loading: false,
   error: null,
-  mustChangePassword: false,
+  // Restore mustChangePassword from stored user so page refresh doesn't lose the lock
+  mustChangePassword: storedUser?.mustChangePassword === true,
   mfaRequired: false,
 };
 
@@ -198,6 +201,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+        // If server confirms password was changed, clear the local flag
+        if (action.payload.mustChangePassword === false) {
+          state.mustChangePassword = false;
+        }
       })
       .addCase(fetchCurrentUser.rejected, (state, action) => {
         state.loading = false;

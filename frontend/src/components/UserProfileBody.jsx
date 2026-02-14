@@ -84,10 +84,10 @@ function Profile({ onLogout }) {
     }
   };
 
-  // Handle account info submit (admin only)
+  // Handle account info submit (admin only) — uses the admin update endpoint
   const handleAccountInfoSubmit = async (updatedData) => {
     try {
-      await userAPI.updateMe(updatedData);
+      await userAPI.updateUser(user.id, updatedData);
       alert('Account information updated successfully');
       setIsAccountModalOpen(false);
       await dispatch(fetchCurrentUser()).unwrap();

@@ -23,7 +23,9 @@ const app = express();
 // ============================================
 // SECURITY MIDDLEWARE
 // ============================================
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow frontend to load /uploads images
+}));
 
 // CORS Configuration for LAN access
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:4000";

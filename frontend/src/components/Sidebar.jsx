@@ -1,8 +1,17 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 function Sidebar({ activeIcon = 'chart-line' }) {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const photoUrl = user?.profilePhotoUrl
+    ? user.profilePhotoUrl.startsWith('http')
+      ? user.profilePhotoUrl
+      : `${API_BASE_URL}${user.profilePhotoUrl}`
+    : null;
 
   const navItems = [
     { icon: 'chart-line', label: 'Dashboard' },
@@ -42,10 +51,23 @@ function Sidebar({ activeIcon = 'chart-line' }) {
       {/* User Avatar at Bottom */}
       <button 
         onClick={() => navigate('/profile')}
-        className="w-12 h-12 rounded-xl bg-safe-gray flex items-center justify-center text-gray-300 hover:bg-safe-gray-light transition-colors"
+        className="w-12 h-12 rounded-xl bg-safe-gray flex items-center justify-center text-gray-300 hover:bg-safe-gray-light transition-colors overflow-hidden"
         title="Profile"
       >
-        <FontAwesomeIcon icon="circle-user" className="text-2xl" />
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt="Profile"
+            className="w-full h-full object-cover rounded-xl"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+          />
+        ) : null}
+        <span
+          style={{ display: photoUrl ? 'none' : 'flex' }}
+          className="w-full h-full items-center justify-center"
+        >
+          <FontAwesomeIcon icon="circle-user" className="text-2xl" />
+        </span>
       </button>
     </aside>
   );
