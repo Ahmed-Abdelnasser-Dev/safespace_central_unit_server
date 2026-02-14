@@ -50,5 +50,6 @@ router.get('/:id',       authorize('admin'), validate(userIdParamSchema), contro
 router.patch('/:id',     authorize('admin'), validate(userIdParamSchema), controller.updateUser);
 router.patch('/:id/deactivate', authorize('admin'), validate(userIdParamSchema), controller.deactivateUser);
 router.patch('/:id/reactivate', authorize('admin'), validate(userIdParamSchema), controller.reactivateUser);
+router.delete('/:id',           authorize('admin'), validate(userIdParamSchema), controller.deleteUser);
 
 module.exports = router;

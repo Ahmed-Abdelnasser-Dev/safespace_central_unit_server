@@ -75,3 +75,8 @@ exports.reactivateUser = catchAsync(async (req, res) => {
   await usersService.reactivateUser(req.params.id, req.user.id);
   res.status(200).json({ status: 'success', message: 'User reactivated' });
 });
+
+exports.deleteUser = catchAsync(async (req, res) => {
+  await usersService.softDeleteUser(req.params.id, req.user.id);
+  res.status(200).json({ status: 'success', message: 'User deleted' });
+});

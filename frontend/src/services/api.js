@@ -222,6 +222,11 @@ export const userAPI = {
     const { data } = await api.patch(`/users/${userId}/reactivate`);
     return data.data; // Extract from wrapper
   },
+
+  deleteUser: async (userId) => {
+    const { data } = await api.delete(`/users/${userId}`);
+    return data;
+  },
 };
 
 // ============================================================================

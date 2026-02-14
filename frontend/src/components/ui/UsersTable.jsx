@@ -59,14 +59,16 @@ function UsersTable({ columns, data, onRowClick, renderCell, className = '' }) {
                   column.headerClass?.includes('text-right') ? 'justify-end' : ''}`}>
                     {column.label}
                     {column.sortable && (
-                      <span className="flex flex-col gap-[1px] opacity-80">
+                      <span className="flex flex-col ml-1" style={{ gap: '1px' }}>
                         <FontAwesomeIcon
                           icon="chevron-up"
-                          className={`text-[9px] leading-none ${sortKey === column.key && sortDir === 'asc' ? 'text-safe-blue-btn' : 'text-safe-text-gray'}`}
+                          style={{ fontSize: '10px', lineHeight: 1 }}
+                          className={sortKey === column.key && sortDir === 'asc' ? 'text-safe-blue-btn' : 'text-gray-400'}
                         />
                         <FontAwesomeIcon
                           icon="chevron-down"
-                          className={`text-[9px] leading-none ${sortKey === column.key && sortDir === 'desc' ? 'text-safe-blue-btn' : 'text-safe-text-gray'}`}
+                          style={{ fontSize: '10px', lineHeight: 1 }}
+                          className={sortKey === column.key && sortDir === 'desc' ? 'text-safe-blue-btn' : 'text-gray-400'}
                         />
                       </span>
                     )}

@@ -43,7 +43,13 @@ async function getLogs({ requestingUser, page = 1, limit = 50, userId, eventType
     prisma.auditLog.count({ where }),
   ]);
 
-  return { logs, total, page, limit, totalPages: Math.ceil(total / limit) };
+  // AuditLog.id is BigInt — JSON.stringify can't serialize BigInt, convert to string
+  const serializedLogs = logs.map(log => ({
+    ...log,
+    id: log.id !== undefined && log.id !== null ? log.id.toString() : log.id,
+  }));
+
+  return { logs: serializedLogs, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 module.exports = { getLogs };

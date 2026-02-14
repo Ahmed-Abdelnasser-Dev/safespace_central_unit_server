@@ -13,6 +13,15 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+  const getPhotoUrl = (user) => {
+    if (!user.profilePhotoUrl) return null;
+    return user.profilePhotoUrl.startsWith('http')
+      ? user.profilePhotoUrl
+      : `${API_BASE_URL}${user.profilePhotoUrl}`;
+  };
+
   // Define table columns
   const columns = [
     {
@@ -98,15 +107,13 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
   };
 
   const handleDelete = async (user) => {
-    if (confirm(`⚠️ WARNING: Are you sure you want to DELETE ${user.fullName || user.email}?\n\nThis action cannot be undone!`)) {
-      try {
-        // TODO: Implement delete endpoint in backend
-        // await userAPI.deleteUser(user.id);
-        alert('Delete functionality not implemented yet');
-        // if (onRefresh) onRefresh();
-      } catch (error) {
-        alert('Failed to delete user');
-      }
+    if (!window.confirm(`Are you sure you want to delete ${user.fullName || user.email}?\nThis action cannot be undone.`)) return;
+    try {
+      await userAPI.deleteUser(user.id);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert(error.response?.data?.message || 'Failed to delete user');
     }
   };
 
@@ -143,11 +150,28 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
   // Custom cell renderer
   const renderCell = (user, column) => {
     switch (column.key) {
-      case 'name':
+      case 'name': {
+        const photoUrl = getPhotoUrl(user);
         return (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-semibold text-sm">
-              {getInitials(user)}
+            <div className="w-10 h-10 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-semibold text-sm overflow-hidden flex-shrink-0">
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={user.fullName || 'User'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <span
+                style={{ display: photoUrl ? 'none' : 'flex' }}
+                className="w-full h-full items-center justify-center"
+              >
+                {getInitials(user)}
+              </span>
             </div>
             <div>
               <p className="font-medium text-safe-text-dark">{user.fullName || user.username || 'Unknown User'}</p>
@@ -155,6 +179,7 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
             </div>
           </div>
         );
+      }
 
       case 'role':
         return (

@@ -284,4 +284,22 @@ async function reactivateUser(targetId, adminId) {
   logger.info(`Admin ${adminId} reactivated user ${targetId}`);
 }
 
-module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, updateUserByAdmin, deactivateUser, reactivateUser };
+// ─── Soft-delete user (admin only) ────────────────────────────────────────────
+async function softDeleteUser(targetId, adminId) {
+  if (targetId === adminId) throw new AppError('You cannot delete your own account', 400);
+
+  const user = await prisma.user.findUnique({ where: { id: targetId, deletedAt: null } });
+  if (!user) throw new AppError('User not found', 404);
+
+  await prisma.user.update({
+    where: { id: targetId },
+    data: {
+      deletedAt: new Date(),
+      isActive:  false,
+    },
+  });
+
+  logger.info(`Admin ${adminId} soft-deleted user ${targetId}`);
+}
+
+module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, updateUserByAdmin, deactivateUser, reactivateUser, softDeleteUser };
