@@ -1,20 +1,9 @@
-/**
- * ProtectedRoute Component
- * Protects routes that require authentication and/or specific roles
- */
-
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
-/**
- * @param {Object} props
- * @param {React.ReactNode} props.children - Component to render if authorized
- * @param {string[]} props.allowedRoles - Array of role names that can access this route (optional)
- * @returns {React.ReactNode}
- */
 function ProtectedRoute({ children, allowedRoles = null }) {
   const location = useLocation();
-  const { isAuthenticated, user, loading } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, loading, mustChangePassword } = useSelector((state) => state.auth);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -33,13 +22,16 @@ function ProtectedRoute({ children, allowedRoles = null }) {
     return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 
+  // If mustChangePassword and not already on /profile, redirect there
+  if (mustChangePassword && location.pathname !== '/profile') {
+    return <Navigate to="/profile" state={{ mustChangePassword: true }} replace />;
+  }
+
   // Check role-based access if allowedRoles is specified
   if (allowedRoles && allowedRoles.length > 0) {
     const userRole = user.role?.name;
     
     if (!allowedRoles.includes(userRole)) {
-      // User is authenticated but doesn't have required role
-      // Redirect to dashboard or show unauthorized message
       return (
         <div className="flex items-center justify-center min-h-screen bg-safe-bg">
           <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-lg">
@@ -63,7 +55,6 @@ function ProtectedRoute({ children, allowedRoles = null }) {
     }
   }
 
-  // User is authenticated and has required role (or no role check needed)
   return children;
 }
 

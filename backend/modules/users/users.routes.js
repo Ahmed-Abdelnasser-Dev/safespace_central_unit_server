@@ -47,6 +47,7 @@ router.patch('/me/photo', upload.single('photo'),       controller.updateProfile
 router.get('/',          authorize('admin'), validate(listUsersSchema),  controller.listUsers);
 router.post('/',         authorize('admin'), validate(createUserSchema),  controller.createUser);
 router.get('/:id',       authorize('admin'), validate(userIdParamSchema), controller.getUser);
+router.patch('/:id',     authorize('admin'), validate(userIdParamSchema), controller.updateUser);
 router.patch('/:id/deactivate', authorize('admin'), validate(userIdParamSchema), controller.deactivateUser);
 router.patch('/:id/reactivate', authorize('admin'), validate(userIdParamSchema), controller.reactivateUser);
 

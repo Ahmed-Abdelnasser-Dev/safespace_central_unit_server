@@ -193,6 +193,17 @@ export const userAPI = {
   },
 
   /**
+   * Update user by admin (email, roleId)
+   * @param {string} userId
+   * @param {Object} updates - email, roleId
+   * @returns {Promise} Updated user object
+   */
+  updateUser: async (userId, updates) => {
+    const { data } = await api.patch(`/users/${userId}`, updates);
+    return data.data;
+  },
+
+  /**
    * Deactivate user (admin only)
    * @param {string} userId
    * @returns {Promise} Updated user object
