@@ -59,7 +59,7 @@ exports.verifyMfa = catchAsync(async (req, res, next) => {
 // ─── Change Password ──────────────────────────────────────────────────────────
 exports.changePassword = catchAsync(async (req, res, next) => {
   const { currentPassword, newPassword } = req.body;
-  const userId    = req.user?.id || req.body.userId; // req.user if protect runs, else from body for first-login
+  const userId    = req.body.userId || req.user?.id; // req.user if protect runs, else from body for first-login
   const ipAddress = req.ip;
   const userAgent = req.headers['user-agent'];
 

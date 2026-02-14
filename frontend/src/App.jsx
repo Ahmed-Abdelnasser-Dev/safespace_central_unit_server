@@ -7,7 +7,9 @@
  * @module App
  */
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 import MapOverview from './screens/MapOverview.jsx';
 import Dashboard from './screens/Dashboard.jsx';
 import SystemTest from './screens/SystemTest.jsx';
@@ -26,6 +28,9 @@ function App() {
   // In development mode, allow direct access to node-maintainer without auth
   const isDev = import.meta.env.DEV;
 
+  // Authentication state
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -33,10 +38,41 @@ function App() {
         {isDev && <Route path="/node-maintainer" element={<NodeMaintainerDashboard />} />}
 
         {/* Main app */}
-        <Route path="/" element={<MapOverview />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+            path="/"
+            element={
+              isAuthenticated ? (
+                <ProtectedRoute>
+                  <MapOverview />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/sign-in" replace />
+              )
+            }
+        />
+
+        <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+        />
+        
         <Route path="/system-test" element={<SystemTest />} />
-        {!isDev && <Route path="/node-maintainer" element={<NodeMaintainerDashboard />} />}
+        {/* {!isDev && <Route path="/node-maintainer" element={<NodeMaintainerDashboard />} />} */}
+
+        {!isDev && (
+          <Route
+            path="/node-maintainer"
+            element={
+              <ProtectedRoute>
+                <NodeMaintainerDashboard />
+              </ProtectedRoute>
+            }
+          />
+        )}
 
         {/* Auth flow */}
         <Route path="/sign-in" element={<SignIn />} />
@@ -46,15 +82,37 @@ function App() {
         <Route path="/all-set" element={<YouAreAllSet />} />
 
         {/* User Management */}
-        <Route path="/user-management" element={<UsersManagement />} />
-        <Route path="/activity-logs" element={<ActivityLogs />} />
+        <Route
+          path="/user-management"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <UsersManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/activity-logs"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <ActivityLogs />
+            </ProtectedRoute>
+          }
+        />
 
         {/* User Profile */}
-        <Route path="/profile" element={<UserProfile />} />
-
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfile />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fallback */}
-        <Route path="*" element={<SignIn />} />
+        <Route path="*" element={<Navigate to="/sign-in" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

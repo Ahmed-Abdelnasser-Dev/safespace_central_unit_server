@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { userAPI } from '../services/api';
 import UsersTable from './ui/UsersTable';
 import EditAccountInfoModal from './EditAccountInfoModal';
 
@@ -7,64 +8,10 @@ import EditAccountInfoModal from './EditAccountInfoModal';
  * User Management Table
  * Displays all users with actions using base Table component
  */
-function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, onViewDetails }) {
+function UserManagementTable({ users = [], loading = false, onRefresh, onPageChange, currentPage = 1 }) {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  
-  // Mock users data - Security: Replace with authenticated API call
-  const users = [
-    {
-      id: 'USR-001',
-      name: 'John Anderson',
-      email: 'john.anderson@agency.safeg.gov',
-      role: 'Road Observer',
-      status: 'active',
-      lastActive: '2 hours ago',
-      joinDate: '2024-01-15',
-      avatar: 'JA'
-    },
-    {
-      id: 'USR-002',
-      name: 'Sarah Mitchell',
-      email: 'sarah.mitchell@agency.safeg.gov',
-      role: 'Emergency Dispatcher',
-      status: 'active',
-      lastActive: '5 hours ago',
-      joinDate: '2024-01-20',
-      avatar: 'SM'
-    },
-    {
-      id: 'USR-003',
-      name: 'Mike Johnson',
-      email: 'mike.johnson@agency.safeg.gov',
-      role: 'Data Analyst',
-      status: 'active',
-      lastActive: '1 day ago',
-      joinDate: '2024-02-01',
-      avatar: 'MJ'
-    },
-    {
-      id: 'USR-004',
-      name: 'Emily Davis',
-      email: 'emily.davis@agency.safeg.gov',
-      role: 'Road Observer',
-      status: 'inactive',
-      lastActive: '3 days ago',
-      joinDate: '2024-01-10',
-      avatar: 'ED'
-    },
-    {
-      id: 'USR-005',
-      name: 'David Chen',
-      email: 'david.chen@agency.safeg.gov',
-      role: 'System Administrator',
-      status: 'active',
-      lastActive: '30 minutes ago',
-      joinDate: '2023-12-15',
-      avatar: 'DC'
-    }
-  ];
 
   // Define table columns
   const columns = [
@@ -102,19 +49,90 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
     }
   ];
 
-  const handleEditClick = (user) => {
-    setSelectedUser(user);
+  const handleEditClick = async (user) => {
+  try {
+    // Fetch full user by ID (includes nationalId, role, employeeId, etc.)
+    const fullUser = await userAPI.getUser(user.id);
+    setSelectedUser(fullUser);
     setIsModalOpen(true);
-  };
+  } catch (error) {
+    console.error('Failed to fetch user details:', error);
+    alert('Failed to load user details');
+  }
+};
+
 
   const handleModalClose = () => {
     setSelectedUser(null);
     setIsModalOpen(false);
   };
 
-  const handleModalSubmit = (updatedUser) => {
+  const handleModalSubmit = async (updatedUser) => {
     console.log('Updated user:', updatedUser);
     handleModalClose();
+    if (onRefresh) onRefresh();
+  };
+
+  const handleDeactivate = async (user) => {
+    const action = user.isActive ? 'deactivate' : 'activate';
+    const actionText = user.isActive ? 'deactivated' : 'activated';
+    
+    if (confirm(`Are you sure you want to ${action} ${user.fullName || user.email}?`)) {
+      try {
+        if (user.isActive) {
+          await userAPI.deactivateUser(user.id);
+        } else {
+          await userAPI.reactivateUser(user.id);
+        }
+        alert(`User ${actionText} successfully`);
+        if (onRefresh) onRefresh();
+      } catch (error) {
+        alert(`Failed to ${action} user`);
+      }
+    }
+  };
+
+  const handleDelete = async (user) => {
+    if (confirm(`⚠️ WARNING: Are you sure you want to DELETE ${user.fullName || user.email}?\n\nThis action cannot be undone!`)) {
+      try {
+        // TODO: Implement delete endpoint in backend
+        // await userAPI.deleteUser(user.id);
+        alert('Delete functionality not implemented yet');
+        // if (onRefresh) onRefresh();
+      } catch (error) {
+        alert('Failed to delete user');
+      }
+    }
+  };
+
+  // Get user initials for avatar
+  const getInitials = (user) => {
+    if (user.fullName) {
+      const names = user.fullName.split(' ');
+      return names.length >= 2 ? `${names[0][0]}${names[1][0]}`.toUpperCase() : names[0][0].toUpperCase();
+    }
+    return user.email?.[0]?.toUpperCase() || 'U';
+  };
+
+  // Format last active time
+  const formatLastActive = (lastLoginAt) => {
+    if (!lastLoginAt) return 'Never';
+    const date = new Date(lastLoginAt);
+    const now = new Date();
+    const diff = now - date;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Format join date
+  const formatJoinDate = (createdAt) => {
+    if (!createdAt) return 'Unknown';
+    return new Date(createdAt).toLocaleDateString();
   };
 
   // Custom cell renderer
@@ -124,11 +142,11 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
         return (
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-semibold text-sm">
-              {user.avatar}
+              {getInitials(user)}
             </div>
             <div>
-              <p className="font-medium text-safe-text-dark">{user.name}</p>
-              <p className="text-xs text-safe-text-gray">{user.id}</p>
+              <p className="font-medium text-safe-text-dark">{user.fullName || user.username || 'Unknown User'}</p>
+              <p className="text-xs text-safe-text-gray">{user.email}</p>
             </div>
           </div>
         );
@@ -137,34 +155,34 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
         return (
           <div className="flex items-center gap-2">
             <FontAwesomeIcon icon="shield" className="text-sm text-safe-blue/80" />
-            <span className="text-sm text-safe-text-dark">{user.role}</span>
+            <span className="text-sm text-safe-text-dark">{user.role?.name || 'User'}</span>
           </div>
         );
 
       case 'status':
         return (
           <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
-            user.status === 'active' 
+            user.isActive 
               ? 'bg-safe-green/10 text-safe-green' 
               : 'bg-safe-text-gray/10 text-safe-text-gray'
           }`}>
-            {user.status}
+            {user.isActive ? 'Active' : 'Inactive'}
           </span>
         );
 
       case 'lastActive':
         return (
           <div>
-            <p className="text-sm text-safe-text-dark">{user.lastActive}</p>
+            <p className="text-sm text-safe-text-dark">{formatLastActive(user.lastLoginAt)}</p>
             <p className="text-xs text-safe-text-gray flex items-center gap-1 mt-0.5">
               <FontAwesomeIcon icon="calendar-check" className="text-xs" />
-              Joined {user.joinDate}
+              Joined {formatJoinDate(user.createdAt)}
             </p>
           </div>
         );
 
       case 'created':
-        return <span className="text-sm text-safe-text-dark">{user.joinDate}</span>;
+        return <span className="text-sm text-safe-text-dark">{formatJoinDate(user.createdAt)}</span>;
 
       case 'actions':
         return (
@@ -177,22 +195,16 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
               Edit
             </button>
             <button
-              onClick={() => onDeactivate && onDeactivate(user)}
+              onClick={() => handleDeactivate(user)}
               className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
             >
-              Deactivate
+              {user.isActive ? 'Deactivate' : 'Activate'}
             </button>
             <button
-              onClick={() => onResetPassword && onResetPassword(user)}
-              className="px-3 py-1.5 text-xs font-medium text-safe-text-dark bg-safe-bg hover:bg-safe-border/50 rounded-lg transition-colors"
-            >
-              Reset Password
-            </button>
-            <button
-              onClick={() => onDelete && onDelete(user)}
+              onClick={() => handleDelete(user)}
               className="px-3 py-1.5 text-xs font-medium text-white bg-safe-danger hover:bg-safe-danger/90 rounded-lg transition-colors"
             >
-              Delete Account
+              Delete
             </button>
           </div>
         );
@@ -202,14 +214,41 @@ function UserManagementTable({ onEdit, onDelete, onDeactivate, onResetPassword, 
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="mt-6 bg-white rounded-xl border border-safe-border p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-safe-blue-btn mx-auto mb-4"></div>
+          <p className="text-safe-text-gray">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (users.length === 0) {
+    return (
+      <div className="mt-6 bg-white rounded-xl border border-safe-border p-8">
+        <div className="text-center">
+          <FontAwesomeIcon icon="users" className="text-4xl text-safe-text-gray mb-4" />
+          <p className="text-safe-text-dark font-medium">No users found</p>
+          <p className="text-sm text-safe-text-gray mt-1">Try adjusting your search filters</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <UsersTable
-        columns={columns}
-        data={users}
-        onRowClick={onViewDetails}
-        renderCell={renderCell}
-      />
+      <div className="mt-6">
+        <UsersTable
+          columns={columns}
+          data={users}
+          renderCell={renderCell}
+        />
+      </div>
+      
       <EditAccountInfoModal
         isOpen={isModalOpen}
         userData={selectedUser}

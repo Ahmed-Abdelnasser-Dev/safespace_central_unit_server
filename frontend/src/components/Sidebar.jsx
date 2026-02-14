@@ -1,6 +1,9 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useNavigate } from 'react-router-dom';
 
 function Sidebar({ activeIcon = 'chart-line' }) {
+  const navigate = useNavigate();
+
   const navItems = [
     { icon: 'chart-line', label: 'Dashboard' },
     { icon: 'video', label: 'Camera' },
@@ -37,7 +40,11 @@ function Sidebar({ activeIcon = 'chart-line' }) {
       </nav>
 
       {/* User Avatar at Bottom */}
-      <button className="w-12 h-12 rounded-xl bg-safe-gray flex items-center justify-center text-gray-300 hover:bg-safe-gray-light transition-colors">
+      <button 
+        onClick={() => navigate('/profile')}
+        className="w-12 h-12 rounded-xl bg-safe-gray flex items-center justify-center text-gray-300 hover:bg-safe-gray-light transition-colors"
+        title="Profile"
+      >
         <FontAwesomeIcon icon="circle-user" className="text-2xl" />
       </button>
     </aside>

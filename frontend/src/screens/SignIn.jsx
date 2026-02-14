@@ -1,12 +1,130 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser, clearError } from '../features/auth/authSlice';
+import { validateEmail } from '../utils/egyptianValidation';
 import LoginLayout from '../components/LoginLayout.jsx';
 import Button from '../components/ui/Button.jsx';
 import Checkbox from '../components/ui/Checkbox.jsx';
 
 function SignIn() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
+  
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+
+  // Redirect if already authenticated - ONLY ONCE
+  useEffect(() => {
+    if (isAuthenticated && !isSubmitting) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location, isSubmitting]);
+
+  // Validate email on blur
+  const handleEmailBlur = () => {
+    if (!email) {
+      setEmailError('Email is required');
+      return;
+    }
+    
+    const { valid, error: validationError } = validateEmail(email);
+    if (!valid) {
+      setEmailError(validationError);
+    } else {
+      setEmailError('');
+    }
+  };
+
+  // Validate password on blur
+  const handlePasswordBlur = () => {
+    if (!password) {
+      setPasswordError('Password is required');
+    } else if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+    } else {
+      setPasswordError('');
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting || loading) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Clear previous errors
+    dispatch(clearError());
+    setEmailError('');
+    setPasswordError('');
+
+    // Validate email
+    if (!email) {
+      setEmailError('Email is required');
+      setIsSubmitting(false);
+      return;
+    }
+    const { valid: emailValid, error: emailValidationError } = validateEmail(email);
+    if (!emailValid) {
+      setEmailError(emailValidationError);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate password
+    if (!password) {
+      setPasswordError('Password is required');
+      setIsSubmitting(false);
+      return;
+    }
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Attempt login
+    try {
+      const result = await dispatch(loginUser({ email, password })).unwrap();
+      
+      // Handle special cases
+      if (result.mustChangePassword) {
+        // Redirect to profile page where user can change password
+        alert('Password change required. Redirecting to profile...');
+        navigate('/profile', { replace: true, state: { mustChangePassword: true } });
+        return;
+      }
+      
+      if (result.mfaRequired) {
+        // Skip MFA as per requirements - redirect directly to map
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
+        return;
+      }
+
+      // Successful login - redirect to map
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } catch (err) {
+      // Error is handled by Redux slice
+      console.error('Login error:', err);
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <LoginLayout
@@ -20,7 +138,20 @@ function SignIn() {
         'Smart city infrastructure integration.',
       ]}
     >
-      <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        {/* Global error message */}
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <i className="bi bi-exclamation-circle text-red-600 text-lg mt-0.5" />
+              <div className="text-sm text-red-800">
+                <p className="font-semibold mb-1">Login Failed</p>
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Email */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-safe-text-dark">
@@ -33,9 +164,18 @@ function SignIn() {
             <input
               type="email"
               placeholder="Enter your email"
-              className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-safe-border bg-safe-bg/40 text-safe-text-dark placeholder:text-safe-text-gray-light focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/20 focus:border-safe-blue-btn"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={handleEmailBlur}
+              className={`w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border ${
+                emailError ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-safe-border focus:ring-safe-blue-btn/20 focus:border-safe-blue-btn'
+              } bg-safe-bg/40 text-safe-text-dark placeholder:text-safe-text-gray-light focus:outline-none focus:ring-2`}
+              disabled={loading || isSubmitting}
             />
           </div>
+          {emailError && (
+            <p className="text-xs text-red-600 mt-1">{emailError}</p>
+          )}
         </div>
 
         {/* Password */}
@@ -48,17 +188,28 @@ function SignIn() {
               <i className="bi bi-lock text-xs" />
             </span>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="Enter your password"
-              className="w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border border-safe-border bg-safe-bg/40 text-safe-text-dark placeholder:text-safe-text-gray-light focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/20 focus:border-safe-blue-btn"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={handlePasswordBlur}
+              className={`w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border ${
+                passwordError ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-safe-border focus:ring-safe-blue-btn/20 focus:border-safe-blue-btn'
+              } bg-safe-bg/40 text-safe-text-dark placeholder:text-safe-text-gray-light focus:outline-none focus:ring-2`}
+              disabled={loading || isSubmitting}
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-safe-text-gray/70 text-xs"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-safe-text-gray/70 text-xs hover:text-safe-text-gray"
+              disabled={loading || isSubmitting}
             >
-              <i className="bi bi-eye" />
+              <i className={`bi bi-eye${showPassword ? '-slash' : ''}`} />
             </button>
           </div>
+          {passwordError && (
+            <p className="text-xs text-red-600 mt-1">{passwordError}</p>
+          )}
         </div>
 
         {/* Remember + Forgot */}
@@ -67,6 +218,7 @@ function SignIn() {
             type="button"
             className="flex items-center gap-2 text-safe-text-gray"
             onClick={() => setRemember(!remember)}
+            disabled={loading || isSubmitting}
           >
             <Checkbox
               checked={remember}
@@ -103,10 +255,17 @@ function SignIn() {
           variant="primary"
           size="md"
           className="w-full"
-          type="button"
-          onClick={() => navigate('/two-factor')}
+          type="submit"
+          disabled={loading || isSubmitting}
         >
-          Sign In
+          {loading || isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              Signing In...
+            </span>
+          ) : (
+            'Sign In'
+          )}
         </Button>
       </form>
     </LoginLayout>

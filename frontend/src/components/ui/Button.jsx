@@ -5,11 +5,12 @@
  * @param {object} props
  * @param {string} [props.variant] - visual style variant (primary | secondary | danger | ghost)
  * @param {string} [props.size] - size variant (sm | md)
+ * @param {string} [props.type] - button type (button | submit | reset)
  * @param {boolean} [props.disabled]
  * @param {function} [props.onClick]
  * @param {React.ReactNode} props.children
  */
-function Button({ variant = 'primary', size = 'md', disabled = false, onClick, children, className = '' }) {
+function Button({ variant = 'primary', size = 'md', type = 'button', disabled = false, onClick, children, className = '' }) {
   const base = 'inline-flex items-center justify-center font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
   const sizes = {
     sm: 'text-sm px-3 py-2',
@@ -22,7 +23,7 @@ function Button({ variant = 'primary', size = 'md', disabled = false, onClick, c
     ghost: 'bg-transparent text-safe-text-gray hover:bg-safe-bg active:scale-[0.98] focus:ring-safe-blue-btn/20'
   };
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}>
       {children}
     </button>
   );

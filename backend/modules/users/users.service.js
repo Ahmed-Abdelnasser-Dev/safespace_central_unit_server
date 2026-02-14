@@ -99,9 +99,33 @@ async function getUserById(targetId, requestingUser) {
   return user;
 }
 
+function generateEmployeeId(roleName) {
+  const prefix = {
+    'admin': 'EMP-ADM',
+    'emergency_dispatcher': 'EMP-DIS',
+    'road_observer': 'EMP-OBS',
+    'node_maintenance_crew': 'EMP-MNT'
+  }[roleName] || 'EMP-USR';
+  
+  const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${prefix}-${randomNum}`;
+}
+
 // ─── Create user (admin only) ─────────────────────────────────────────────────
 async function createUser({ email, roleId, nationalId, employeeId, createdByUserId }) {
-  // Check for duplicates
+  // Get role to generate employeeId
+  const role = await prisma.role.findUnique({ where: { id: roleId } });
+
+  // Auto-generate employeeId if not provided
+  if (!employeeId) {
+    employeeId = generateEmployeeId(role.name);
+    
+    // Ensure uniqueness
+    while (await prisma.user.findUnique({ where: { employeeId } })) {
+      employeeId = generateEmployeeId(role.name);
+    }
+  }
+  
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email }, { nationalId }, { employeeId }], deletedAt: null },
   });

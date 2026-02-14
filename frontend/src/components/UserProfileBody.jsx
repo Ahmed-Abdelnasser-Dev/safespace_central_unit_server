@@ -1,42 +1,138 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUserProfile, fetchCurrentUser } from '../features/auth/authSlice';
+import { userAPI } from '../services/api';
+import { formatEgyptianPhone, formatEgyptianNID } from '../utils/egyptianValidation';
 import EditPersonalInfoModal from './EditPersonalInfoModal';
 import EditAccountInfoModal from './EditAccountInfoModal';
-import { useState } from 'react';
-
+import ChangePasswordModal from './ChangePasswordModal';
 
 /**
- * Profile Screen Component
+ * Profile Screen Component - EXACT ORIGINAL UI WITH REAL DATA
  * Manage and update profile data
  * Security: Sensitive fields (National ID) read-only, changes validated server-side
  */
 function Profile({ onLogout }) {
-
+  const dispatch = useDispatch();
+  const { user, loading } = useSelector((state) => state.auth);
+  
   const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
+  // Check if user is admin
+  const isAdmin = user?.role?.name === 'admin';
 
-  // Mock profile data - Security: Replace with authenticated API call
-  const profile = {
-    fullName: 'John Anderson',
-    username: 'john.anderson',
-    avatar: 'JA',
-    role: 'System Admin',
-    location: 'New York Regional Office',
-    email: 'john.anderson@highway-safety.gov',
-    phone: '+1-555-0100',
-    memberSince: 'January 15, 2024',
-    // Personal Info
-    phoneNumber: '+1-555-0100',
-    birthDate: 'March 15, 1985',
-    gender: 'Male',
-    department: 'Operations Management',
-    officeLocation: 'New York Regional Office',
-    address: '123 Main Street, Apt 4B, New York, NY 10001',
-    // Account Info (read-only)
-    userId: 'USR-001',
-    nationalId: '1234567890123',
+  // Handle profile photo update
+  // const handlePhotoUpload = async (event) => {
+  //   const file = event.target.files[0];
+  //   if (!file) return;
+
+  //   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+  //     alert('Please upload a valid image file (JPEG, PNG, or WebP)');
+  //     return;
+  //   }
+
+  //   if (file.size > 5 * 1024 * 1024) {
+  //     alert('File size must be less than 5MB');
+  //     return;
+  //   }
+
+  //   try {
+  //     await userAPI.updatePhoto(file);
+  //     await dispatch(fetchCurrentUser()).unwrap();
+  //     alert('Profile photo updated successfully');
+  //   } catch (error) {
+  //     console.error('Photo upload error:', error);
+  //     alert('Failed to update profile photo');
+  //   }
+  // };
+
+    const handlePhotoUpload = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+  
+      // Validate file type and size
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        alert('Please upload a valid image file (JPEG, PNG, or WebP)');
+        return;
+      }
+  
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+  
+      try {
+        const updatedUser = await userAPI.updatePhoto(file);
+        dispatch(fetchCurrentUser());
+        alert('Profile photo updated successfully');
+      } catch (error) {
+        console.error('Photo upload error:', error);
+        alert('Failed to update profile photo');
+      }
+    };
+
+  // Handle personal info submit
+  const handlePersonalInfoSubmit = async (updatedData) => {
+    try {
+      await dispatch(updateUserProfile(updatedData)).unwrap();
+      alert('Personal information updated successfully');
+      setIsPersonalModalOpen(false);
+      await dispatch(fetchCurrentUser()).unwrap();
+    } catch (error) {
+      alert(error || 'Failed to update personal information');
+    }
   };
 
+  // Handle account info submit (admin only)
+  const handleAccountInfoSubmit = async (updatedData) => {
+    try {
+      await userAPI.updateMe(updatedData);
+      alert('Account information updated successfully');
+      setIsAccountModalOpen(false);
+      await dispatch(fetchCurrentUser()).unwrap();
+    } catch (error) {
+      alert(error?.response?.data?.message || 'Failed to update account information');
+    }
+  };
+
+  // Loading state
+  if (loading || !user) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-safe-bg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-safe-blue-btn mx-auto mb-4"></div>
+          <p className="text-safe-text-gray">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Prepare profile data from user object
+  const profile = {
+    fullName: user.fullName || 'Not set',
+    username: user.username || user.email?.split('@')[0] || 'user',
+    avatar: user.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : user.email?.[0]?.toUpperCase() || 'U',
+    role: user.role?.name || 'User',
+    location: user.officeLocation || 'Not set',
+    email: user.email,
+    phone: user.phone ? formatEgyptianPhone(user.phone) : 'Not set',
+    memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown',
+    // Personal Info
+    phoneNumber: user.phone ? formatEgyptianPhone(user.phone) : 'Not set',
+    birthDate: user.birthdate ? new Date(user.birthdate).toLocaleDateString() : 'Not set',
+    gender: user.gender || 'Not set',
+    department: user.department || 'Not set',
+    officeLocation: user.officeLocation || 'Not set',
+    address: user.address || 'Not set',
+    // Account Info
+    userId: user.employeeId || user.id,
+    nationalId: user.nationalId ? formatEgyptianNID(user.nationalId) : 'Not set',
+  };
+
+  // Recent activity - REAL DATA
   const recentActivity = [
     {
       id: 1,
@@ -44,7 +140,9 @@ function Profile({ onLogout }) {
       iconColor: 'text-safe-green',
       iconBg: 'bg-safe-white',
       title: 'Logged in',
-      subtitle: '2 hours ago • New York Office'
+      subtitle: user.lastLoginAt 
+        ? `${new Date(user.lastLoginAt).toLocaleString()} • ${profile.officeLocation}`
+        : 'No login history'
     },
     {
       id: 2,
@@ -52,7 +150,9 @@ function Profile({ onLogout }) {
       iconColor: 'text-safe-blue-btn',
       iconBg: 'bg-safe-white',
       title: 'Updated profile information',
-      subtitle: 'Yesterday at 3:42 PM • New York Office'
+      subtitle: user.updatedAt && user.createdAt && new Date(user.updatedAt) > new Date(user.createdAt)
+        ? `${new Date(user.updatedAt).toLocaleString()} • ${profile.officeLocation}`
+        : 'No updates yet'
     },
     {
       id: 3,
@@ -60,7 +160,11 @@ function Profile({ onLogout }) {
       iconColor: 'text-safe-accent',
       iconBg: 'bg-safe-white',
       title: 'Password changed',
-      subtitle: '5 days ago • New York Office'
+      subtitle: user.passwordChangedAt
+        ? `${new Date(user.passwordChangedAt).toLocaleDateString()} • ${profile.officeLocation}`
+        : user.mustChangePassword
+          ? 'Password change required'
+          : 'Default password'
     }
   ];
 
@@ -117,10 +221,16 @@ function Profile({ onLogout }) {
           </div>
 
           {/* Edit Image Button */}
-          <button className="flex items-center gap-2 px-4 py-2 bg-safe-blue-btn text-white text-sm font-medium rounded-lg hover:bg-safe-blue-btn/90 transition-colors">
+          <label className="flex items-center gap-2 px-4 py-2 bg-safe-blue-btn text-white text-sm font-medium rounded-lg hover:bg-safe-blue-btn/90 transition-colors cursor-pointer">
             <FontAwesomeIcon icon="pen-to-square" className="text-xs" />
             Edit Image
-          </button>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handlePhotoUpload}
+            />
+          </label>
         </div>
       </div>
 
@@ -165,12 +275,14 @@ function Profile({ onLogout }) {
                 <h3 className="text-base font-bold text-safe-text-dark">Account Information</h3>
                 <p className="text-xs text-safe-text-gray mt-0.5">Editable only by Admin</p>
               </div>
-              <button 
-                onClick={() => setIsAccountModalOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-2 bg-safe-blue-btn text-white text-xs font-medium rounded-lg hover:bg-safe-blue-btn/90 transition-colors">
-                <FontAwesomeIcon icon="pen-to-square" className="text-[10px]" />
-                Edit
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setIsAccountModalOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-safe-blue-btn text-white text-xs font-medium rounded-lg hover:bg-safe-blue-btn/90 transition-colors">
+                  <FontAwesomeIcon icon="pen-to-square" className="text-[10px]" />
+                  Edit
+                </button>
+              )}
             </div>
             <div className="border-b border-safe-border" />
           </div>
@@ -215,7 +327,9 @@ function Profile({ onLogout }) {
 
           <div className="space-y-3">
             {/* Change Password */}
-            <button className="w-full flex items-center gap-4 p-4 border bg-safe-bg rounded-lg hover:bg-safe-bg transition-colors text-left group">
+            <button 
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="w-full flex items-center gap-4 p-4 border bg-safe-bg rounded-lg hover:bg-safe-bg transition-colors text-left group">
               <div className="w-9 h-9 rounded-lg bg-safe-white  text-safe-blue-btn flex items-center justify-center flex-shrink-0">
                 <FontAwesomeIcon icon="lock" className="text-sm" />
               </div>
@@ -244,25 +358,28 @@ function Profile({ onLogout }) {
         </div>
       </div>
 
-        {/* Personal Info Modal */}
-        <EditPersonalInfoModal
+      {/* Personal Info Modal */}
+      <EditPersonalInfoModal
         isOpen={isPersonalModalOpen}
         onClose={() => setIsPersonalModalOpen(false)}
-        userData={profile}
-        onSubmit={(updatedData) => {
-            console.log('Personal info updated:', updatedData);
-        }}
-        />
+        userData={user}
+        onSubmit={handlePersonalInfoSubmit}
+      />
 
-        {/* Account Info Modal */}
-        <EditAccountInfoModal
+      {/* Account Info Modal */}
+      <EditAccountInfoModal
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
-        userData={profile}
-        onSubmit={(updatedData) => {
-            console.log('Account info updated:', updatedData);
-        }}
-        />
+        userData={user}
+        onSubmit={handleAccountInfoSubmit}
+        isAdmin={isAdmin}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
 
     </div>
   );

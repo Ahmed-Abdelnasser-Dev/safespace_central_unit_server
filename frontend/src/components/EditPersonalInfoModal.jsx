@@ -9,8 +9,8 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
-    phoneNumber: '',
-    birthDate: '',
+    phone: '',
+    birthdate: '',
     gender: '',
     department: '',
     officeLocation: '',
@@ -25,8 +25,8 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
       setFormData({
         fullName: userData.fullName || '',
         username: userData.username || '',
-        phoneNumber: userData.phoneNumber || '',
-        birthDate: userData.birthDate || '',
+        phone: userData.phone || '',
+        birthdate: userData.birthdate || '',
         gender: userData.gender || '',
         department: userData.department || '',
         officeLocation: userData.officeLocation || '',
@@ -48,7 +48,7 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
 
     if (!formData.fullName) newErrors.fullName = 'Full name is required';
     if (!formData.username) newErrors.username = 'Username is required';
-    if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
+    if (!formData.phone) newErrors.phone = 'Phone number is required';
     if (!formData.department) newErrors.department = 'Department is required';
     if (!formData.officeLocation) newErrors.officeLocation = 'Office location is required';
 
@@ -127,9 +127,9 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
             {/* Phone Number */}
             <InputField
               label="Phone Number"
-              value={formData.phoneNumber}
-              error={errors.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+              value={formData.phone}
+              error={errors.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
             />
 
             {/* Birth Date */}
@@ -139,8 +139,8 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
               </label>
               <input
                 type="date"
-                value={formData.birthDate}
-                onChange={(e) => handleInputChange('birthDate', e.target.value)}
+                value={formData.birthdate}
+                onChange={(e) => handleInputChange('birthdate', e.target.value)}
                 className="w-full px-4 py-2.5 bg-safe-bg border border-safe-border rounded-lg focus:ring-2 focus:ring-safe-blue-btn/30"
               />
             </div>
@@ -156,9 +156,10 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
                 className="w-full px-4 py-2.5 bg-safe-bg border border-safe-border rounded-lg cursor-pointer focus:ring-2 focus:ring-safe-blue-btn/30"
               >
                 <option value="">Select gender...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
               </select>
             </div>
 

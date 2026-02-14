@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../features/auth/authSlice';
 import Sidebar from "../components/Sidebar";
 import UserManagementHeader from "../components/UserManagementHeader";
 import UserProfileBody from "../components/UserProfileBody"
@@ -9,15 +11,19 @@ import UserProfileBody from "../components/UserProfileBody"
  */
 
 function UserProfile() {
-
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
     // Security: Clear all sensitive state and tokens on logout
-    const handleLogout = () => {
-        // TODO: Call logout API endpoint, clear auth tokens
-        // Example: await api.logout();
-        // Clear in-memory auth state, do NOT use localStorage for tokens
-        navigate('/signin');
+    const handleLogout = async () => {
+        try {
+            await dispatch(logoutUser()).unwrap();
+            navigate('/sign-in', { replace: true });
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Even if logout API fails, redirect to sign-in
+            navigate('/sign-in', { replace: true });
+        }
     };
     
     return (
@@ -29,7 +35,7 @@ function UserProfile() {
             {/* Header at the top */}
             <UserManagementHeader
               title="Profile"
-              description="Manage and Update you Profile Information"
+              description="Manage and Update your Profile Information"
             />
 
             {/* Body */}
