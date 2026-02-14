@@ -62,13 +62,7 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
                   ref={imageRef}
                   onLoad={updateOverlayRect}
                 />
-                {(accidentPolygon || nodePolygons.length > 0) && overlayRect.width > 0 && (
-                  <PolygonOverlay
-                    accidentPolygon={accidentPolygon}
-                    nodePolygons={nodePolygons}
-                    overlayRect={overlayRect}
-                  />
-                )}
+                {/* Polygon overlay removed as per new requirements */}
               </>
             )}
           </div>

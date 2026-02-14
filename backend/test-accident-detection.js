@@ -28,13 +28,13 @@ const testPayload = {
   nodeId: NODE_ID,
   accidentPolygon: {
     points: [
-      { x: 500, y: 300 },
-      { x: 1100, y: 300 },
-      { x: 1100, y: 600 },
-      { x: 500, y: 600 },
+      { x: 50, y: 50 },
+      { x: 50, y: 100 },
+      { x: 100, y: 100 },
+      { x: 100, y: 50 },
     ],
-    baseWidth: 1920,
-    baseHeight: 1080
+    baseWidth: 640,
+    baseHeight: 640
   },
   media: []
 };
@@ -89,17 +89,7 @@ async function runTest() {
       wsConnection.on('open', () => {
         console.log('✅ WebSocket connected\n');
         wsConnected = true;
-
-        // Register node
-        const registerMsg = {
-          type: 'register',
-          nodeId: NODE_ID,
-          token: TOKEN,
-          timestamp: new Date().toISOString()
-        };
-
-        console.log('📝 Registering node...');
-        wsConnection.send(JSON.stringify(registerMsg));
+        // Registration logic removed as requested
       });
 
       wsConnection.on('message', (data) => {

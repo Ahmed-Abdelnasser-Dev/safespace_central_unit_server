@@ -44,41 +44,50 @@ function findIntersectedLanes(accidentPolygon, lanePolygons) {
   try {
     // Convert accident polygon to Turf format
     const accidentTurfPolygon = convertPixelPolygonToTurf(accidentPolygon);
-    
+
     if (!accidentTurfPolygon) {
       logger.error('Failed to convert accident polygon to Turf format');
       return [];
     }
-    
-    // Check each lane for intersection
+
+    // Use accidentPolygon's baseWidth/baseHeight for all lane polygons
+    const { baseWidth, baseHeight } = accidentPolygon;
+
     lanePolygons.forEach((lanePolygon, index) => {
       try {
         if (!lanePolygon.points || lanePolygon.points.length < 3) {
           logger.warn(`Lane polygon ${index} has insufficient points`, { lanePolygon });
           return;
         }
-        
-        const laneTurfPolygon = convertPixelPolygonToTurf(lanePolygon);
-        
+
+        // Clone lanePolygon and override baseWidth/baseHeight for normalization
+        const normalizedLanePolygon = {
+          ...lanePolygon,
+          baseWidth: baseWidth || lanePolygon.baseWidth,
+          baseHeight: baseHeight || lanePolygon.baseHeight
+        };
+
+        const laneTurfPolygon = convertPixelPolygonToTurf(normalizedLanePolygon);
+
         if (!laneTurfPolygon) {
           logger.warn(`Failed to convert lane polygon ${index}`, { lanePolygon });
           return;
         }
-        
+
         // Check for intersection using Turf.js
         const intersects = turf.booleanIntersects(accidentTurfPolygon, laneTurfPolygon);
-        
+
         if (intersects) {
           // Extract lane number from name (e.g., "Lane 1" -> 1)
           const laneNumberMatch = lanePolygon.name?.match(/\d+/);
           const laneNumber = laneNumberMatch ? parseInt(laneNumberMatch[0]) : index + 1;
-          
+
           intersectedLanes.push({
             id: lanePolygon.id,
             name: lanePolygon.name || `Lane ${index + 1}`,
             laneNumber: laneNumber
           });
-          
+
           logger.info(`Lane intersection detected`, {
             laneId: lanePolygon.id,
             laneName: lanePolygon.name,

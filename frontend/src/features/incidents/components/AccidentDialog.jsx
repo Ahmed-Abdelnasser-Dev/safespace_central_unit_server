@@ -9,6 +9,7 @@ import AiAnalysisCard from './cards/AiAnalysisCard.jsx';
 import DecisionCard from './cards/DecisionCard.jsx';
 import OverridePanel from './override/OverridePanel.jsx';
 import MediaCarousel from './media/MediaCarousel.jsx';
+import AccidentPolygonDialog from './media/AccidentPolygonDialog.jsx';
 import { emitAdminAccidentResponse } from '../../../services/socketService.js';
 
 /**
@@ -23,6 +24,7 @@ import { emitAdminAccidentResponse } from '../../../services/socketService.js';
  * @param {object} props.incident
  */
 function AccidentDialog({ open, onClose, incident, onDecision }) {
+  const [polygonDialogOpen, setPolygonDialogOpen] = useState(false);
   // Initialize with AI Decision module's recommendations (not node defaults)
   const initialSpeedLimit = incident?.decision?.speedLimit
     || incident?.node?.defaultSpeedLimit
@@ -94,15 +96,31 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         speedLimit !== initialSpeedLimit || 
         JSON.stringify(laneConfiguration) !== JSON.stringify(initialLaneConfig) ||
         JSON.stringify(selected) !== JSON.stringify(initialActions);
-      
+
       const finalDecisionType = hasModifications ? 'MODIFIED' : 'CONFIRMED';
-      
+
       const blockedLanes = laneConfiguration
         .map((state, idx) => (state === 'blocked' ? idx + 1 : null))
         .filter(Boolean);
 
       // Ensure laneConfiguration is a proper array
       const finalLaneConfiguration = Array.isArray(laneConfiguration) ? laneConfiguration : [];
+
+      // Ensure accidentPolygon includes baseWidth/baseHeight
+      let accidentPolygon = incident?.accidentPolygon;
+      if (accidentPolygon) {
+        // Try to get image resolution from mediaList
+        const image = incident?.mediaList?.find(m => m.type === 'image');
+        if (image && (!accidentPolygon.baseWidth || !accidentPolygon.baseHeight)) {
+          // If image metadata is available, set baseWidth/baseHeight
+          // Assume image object has width/height properties (if not, fallback to 640)
+          accidentPolygon = {
+            ...accidentPolygon,
+            baseWidth: image.width || 640,
+            baseHeight: image.height || 640
+          };
+        }
+      }
 
       const response = {
         incidentId: incident?.incidentId || '',
@@ -114,6 +132,7 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         blockedLanes,
         laneStates: finalLaneConfiguration,
         laneConfiguration: finalLaneConfiguration.join(','),
+        accidentPolygon,
         message: `Admin ${finalDecisionType.toLowerCase()} - ${selected.length} actions`,
         timestamp: new Date().toISOString(),
       };
@@ -123,7 +142,8 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         status: response.status,
         speedLimit: response.speedLimit,
         laneStatesLength: response.laneStates.length,
-        laneStates: response.laneStates
+        laneStates: response.laneStates,
+        accidentPolygon: response.accidentPolygon
       });
 
       emitAdminAccidentResponse(response);
@@ -242,11 +262,26 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
           {/* Top Row: Image + Override */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[16px]">
             <div>
-              <div className="aspect-video bg-[#e5e7eb] rounded-[8px] overflow-hidden border border-[#d1d5db]">
+              <div className="bg-[#e5e7eb] rounded-[8px] overflow-hidden border border-[#d1d5db] relative max-w-[640px] mx-auto" style={{ aspectRatio: '1 / 1', minHeight: '320px', maxHeight: '640px' }}>
                 <MediaCarousel 
                   mediaList={incident?.mediaList || []}
                   accidentPolygon={incident?.accidentPolygon}
                   nodePolygons={incident?.nodePolygons || []}
+                />
+                <button
+                  className="absolute top-2 right-2 z-20 bg-white/80 hover:bg-white text-safe-blue border border-safe-border rounded px-3 py-1 text-xs font-semibold shadow transition"
+                  onClick={() => setPolygonDialogOpen(true)}
+                  title="View Polygons"
+                >
+                  <FontAwesomeIcon icon="draw-polygon" className="mr-1" />
+                  View Polygons
+                </button>
+                <AccidentPolygonDialog
+                  open={polygonDialogOpen}
+                  onClose={() => setPolygonDialogOpen(false)}
+                  accidentPolygon={incident?.accidentPolygon}
+                  nodePolygons={incident?.nodePolygons || []}
+                  imageUrl={incident?.mediaList?.[0]?.url || ''}
                 />
               </div>
             </div>

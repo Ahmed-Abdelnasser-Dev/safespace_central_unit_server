@@ -33,8 +33,9 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
   const dragStartPointsRef = useRef(null);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
-  const [videoAspect, setVideoAspect] = useState({ width: 16, height: 9 });
-  const videoSizeRef = useRef({ width: 0, height: 0 });
+  // Always use 640x640 for node camera
+  const [videoAspect, setVideoAspect] = useState({ width: 640, height: 640 });
+  const videoSizeRef = useRef({ width: 640, height: 640 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,21 +50,15 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
     } else if (lastSnapshot?.snapshotPath) {
       img.src = `${baseUrl}${lastSnapshot.snapshotPath}`;
     } else {
-      img.src = 'https://images.unsplash.com/photo-1489496900549-f21edf41dd20?w=800&h=450&fit=crop';
+      img.src = 'https://images.unsplash.com/photo-1489496900549-f21edf41dd20?w=640&h=640&fit=crop';
     }
-    
+
     img.onload = () => {
-      if (img.width > 0 && img.height > 0) {
-        const isVideoFrame = Boolean(currentFrame?.frameData);
-        if (isVideoFrame || videoSizeRef.current.width === 0) {
-          videoSizeRef.current = { width: img.width, height: img.height };
-          setVideoAspect({ width: img.width, height: img.height });
-        }
-      }
-
-      const targetWidth = videoSizeRef.current.width || img.width;
-      const targetHeight = videoSizeRef.current.height || img.height;
-
+      // Always use 640x640 for canvas and polygons
+      const targetWidth = 640;
+      const targetHeight = 640;
+      videoSizeRef.current = { width: 640, height: 640 };
+      setVideoAspect({ width: 640, height: 640 });
       canvas.width = targetWidth;
       canvas.height = targetHeight;
       ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
@@ -72,8 +67,8 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
 
     img.onerror = () => {
       // Fallback: draw a solid color
-      canvas.width = 800;
-      canvas.height = 450;
+      canvas.width = 640;
+      canvas.height = 640;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#fff';
@@ -243,8 +238,8 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
       laneNumber: polygon?.laneNumber, // Preserve lane association
       type: 'lane',
       points,
-      baseWidth: canvas?.width || 0,
-      baseHeight: canvas?.height || 0,
+      baseWidth: 640,
+      baseHeight: 640,
       isEmpty: false, // Mark as defined
     };
 
@@ -383,11 +378,13 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
                 </label>
               </div>
               <div
-                className="relative w-full border-2 border-dashed border-safe-border rounded-lg bg-black"
-                style={{ aspectRatio: `${videoAspect.width} / ${videoAspect.height}` }}
+                className="relative w-full max-w-[640px] mx-auto border-2 border-dashed border-safe-border rounded-lg bg-black"
+                style={{ aspectRatio: '1 / 1', minHeight: '320px', maxHeight: '640px' }}
               >
                 <canvas
                   ref={canvasRef}
+                  width={640}
+                  height={640}
                   onClick={handleCanvasClick}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}

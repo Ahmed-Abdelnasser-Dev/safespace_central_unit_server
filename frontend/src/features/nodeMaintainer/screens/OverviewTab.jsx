@@ -57,7 +57,8 @@ export default function OverviewTab() {
   const { currentFrame, lastSnapshot, isConnected } = useNodeVideoFeed();
   const [displayImage, setDisplayImage] = useState(null);
   const feedRef = useRef(null);
-  const [feedSize, setFeedSize] = useState({ width: 0, height: 0 });
+  // Always use 640x640 for node camera
+  const [feedSize, setFeedSize] = useState({ width: 640, height: 640 });
 
   if (!node) return null;
 
@@ -73,24 +74,7 @@ export default function OverviewTab() {
     }
   }, [currentFrame, lastSnapshot]);
 
-  useEffect(() => {
-    const container = feedRef.current;
-    if (!container) return;
-
-    const updateSize = () => {
-      const rect = container.getBoundingClientRect();
-      setFeedSize({ width: rect.width, height: rect.height });
-    };
-
-    updateSize();
-
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(container);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
+  // No need to observe or update size, always fixed at 640x640
 
 
   // Sample lane data
@@ -127,8 +111,8 @@ export default function OverviewTab() {
 
         <div
           ref={feedRef}
-          className="relative bg-[#1a1a1a] rounded-[6px] sm:rounded-[7px] md:rounded-[8px] overflow-hidden w-full"
-          style={{ aspectRatio: "16/9" }}
+          className="relative bg-[#1a1a1a] rounded-[6px] sm:rounded-[7px] md:rounded-[8px] overflow-hidden w-full max-w-[640px] mx-auto"
+          style={{ aspectRatio: '1 / 1', minHeight: '320px', maxHeight: '640px' }}
         >
           {displayImage ? (
             <img 
