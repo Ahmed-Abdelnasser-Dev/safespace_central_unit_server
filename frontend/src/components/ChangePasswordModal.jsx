@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';  // FIX: Added useNavigate
 import { authAPI } from '../services/api';
+import { fetchCurrentUser } from '../features/auth/authSlice';
 
 /**
  * Change Password Modal
  * Allows users to update their password with validation
  */
 function ChangePasswordModal({ isOpen, onClose, isMandatory = false }) {
-  const { user } = useSelector((state) => state.auth);  // Get user from Redux
+  const dispatch = useDispatch();
+  const navigate = useNavigate();  // FIX: Added navigate hook
+  const { user } = useSelector((state) => state.auth);
   
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -94,8 +98,16 @@ function ChangePasswordModal({ isOpen, onClose, isMandatory = false }) {
     try {
       // Pass userId explicitly
       await authAPI.changePassword(user.id, formData.currentPassword, formData.newPassword);
-      alert('Password changed successfully!');
+      
+      // Refresh user data to get mustChangePassword: false from backend
+      await dispatch(fetchCurrentUser()).unwrap();
+      
+      alert('Password changed successfully! Redirecting to dashboard...');
+      
+      // FIX: Close modal and redirect to map overview
       handleClose();
+      navigate('/map-overview', { replace: true });
+      
     } catch (error) {
       console.error('Password change error:', error);
       if (error.response?.status === 401) {

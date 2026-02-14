@@ -28,6 +28,8 @@ function Profile({ onLogout }) {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(
     location.state?.mustChangePassword === true
   );
+  // FIX: Track if password was just changed to show success banner
+  const [passwordJustChanged, setPasswordJustChanged] = useState(false);
 
   // Prevent navigation away when mustChangePassword is true
   useEffect(() => {
@@ -96,11 +98,21 @@ function Profile({ onLogout }) {
     }
   };
 
-  // After password change, clear the mustChangePassword state & navigate
-  const handlePasswordModalClose = () => {
+  // FIX: After password change, redirect to profile without state
+  const handlePasswordModalClose = async () => {
     setIsPasswordModalOpen(false);
-    // If the password was just changed, refresh user data
-    dispatch(fetchCurrentUser());
+    
+    // If password was just changed (modal was mandatory)
+    if (mustChangePassword || location.state?.mustChangePassword) {
+      // Refresh user data to get mustChangePassword: false from backend
+      await dispatch(fetchCurrentUser()).unwrap();
+      
+      // Set flag to show success banner
+      setPasswordJustChanged(true);
+      
+      // Clear the navigation state by replacing current history entry
+      navigate('/profile', { replace: true, state: {} });
+    }
   };
 
   // Loading state
@@ -197,6 +209,26 @@ function Profile({ onLogout }) {
           </button>
         </div>
       )}
+      
+      {/* FIX: Success banner - only show if password was just changed */}
+      {passwordJustChanged && !mustChangePassword && (
+        <div className="bg-blue-50 border border-blue-300 rounded-xl p-4 flex items-start gap-3">
+          <FontAwesomeIcon icon="circle-info" className="text-blue-600 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-blue-900">Password Updated Successfully!</h4>
+            <p className="text-sm text-blue-700 mt-1">
+              Please continue and complete your profile details below.
+            </p>
+          </div>
+          <button
+            onClick={() => setPasswordJustChanged(false)}
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <FontAwesomeIcon icon="xmark" className="text-lg" />
+          </button>
+        </div>
+      )}
+      
       {/* ── Profile Hero Card ── */}
       <div className="bg-white rounded-xl border border-safe-border p-7">
         <div className="flex items-start justify-between">
