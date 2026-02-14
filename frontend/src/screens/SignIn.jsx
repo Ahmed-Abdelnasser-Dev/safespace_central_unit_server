@@ -103,24 +103,21 @@ function SignIn() {
       
       // Handle special cases
       if (result.mustChangePassword) {
-        // Redirect to profile page where user can change password
-        alert('Password change required. Redirecting to profile...');
+        // Navigate to profile — ProtectedRoute will let us through since isAuthenticated is now true
         navigate('/profile', { replace: true, state: { mustChangePassword: true } });
         return;
       }
       
       if (result.mfaRequired) {
-        // Skip MFA as per requirements - redirect directly to map
         const from = location.state?.from?.pathname || '/';
         navigate(from, { replace: true });
         return;
       }
 
-      // Successful login - redirect to map
+      // Successful login - redirect
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
     } catch (err) {
-      // Error is handled by Redux slice
       console.error('Login error:', err);
       setIsSubmitting(false);
     }

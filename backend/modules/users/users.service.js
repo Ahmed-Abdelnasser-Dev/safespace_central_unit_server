@@ -23,13 +23,21 @@ const { logger } = require('../../utils/logger');
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 10;
 
 // ─── List all users (admin only) ──────────────────────────────────────────────
-async function listUsers({ page = 1, limit = 20, role, isActive } = {}) {
+async function listUsers({ page = 1, limit = 20, role, isActive, search } = {}) {
   const skip = (page - 1) * limit;
 
   const where = {
     deletedAt: null,
     ...(role     && { role: { name: role } }),
     ...(isActive !== undefined && { isActive }),
+    ...(search && {
+      OR: [
+        { fullName:   { contains: search, mode: 'insensitive' } },
+        { email:      { contains: search, mode: 'insensitive' } },
+        { username:   { contains: search, mode: 'insensitive' } },
+        { employeeId: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
   };
 
   const [users, total] = await Promise.all([
@@ -89,9 +97,11 @@ async function getUserById(targetId, requestingUser) {
       accountLocked:   true,
       lastLoginAt:     true,
       createdAt:       true,
+      updatedAt:       true,
+      passwordChangedAt: true,
       mustChangePassword: true,
       mfaEnabled:      true,
-      role: { select: { name: true, description: true } },
+      role: { select: { id: true, name: true, description: true } },
     },
   });
 
@@ -209,6 +219,43 @@ async function updateProfilePhoto(userId, photoUrl) {
   });
 }
 
+// ─── Update user by admin ─────────────────────────────────────────────────────
+async function updateUserByAdmin(targetId, { email, roleId }, adminId) {
+  // Prevent admin from accidentally removing their own role
+  const updates = {};
+
+  if (email) {
+    // Check email uniqueness
+    const existing = await prisma.user.findFirst({
+      where: { email, id: { not: targetId }, deletedAt: null },
+    });
+    if (existing) throw new AppError('Email already in use', 409);
+    updates.email = email;
+  }
+
+  if (roleId) {
+    const role = await prisma.role.findUnique({ where: { id: parseInt(roleId, 10) } });
+    if (!role) throw new AppError('Invalid role', 400);
+    updates.roleId = parseInt(roleId, 10);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError('No valid fields to update', 400);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: targetId },
+    data: updates,
+    select: {
+      id: true, email: true, employeeId: true,
+      role: { select: { id: true, name: true } },
+    },
+  });
+
+  logger.info(`Admin ${adminId} updated user ${targetId}`);
+  return updated;
+}
+
 // ─── Deactivate user (admin only, soft) ───────────────────────────────────────
 async function deactivateUser(targetId, adminId) {
   if (targetId === adminId) throw new AppError('You cannot deactivate your own account', 400);
@@ -237,4 +284,4 @@ async function reactivateUser(targetId, adminId) {
   logger.info(`Admin ${adminId} reactivated user ${targetId}`);
 }
 
-module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, deactivateUser, reactivateUser };
+module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, updateUserByAdmin, deactivateUser, reactivateUser };

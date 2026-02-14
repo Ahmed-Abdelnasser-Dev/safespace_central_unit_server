@@ -12,6 +12,7 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData, isAdmin = f
     nationalId: '',
     employeeId: '',
     role: '',
+    roleName: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -19,14 +20,13 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData, isAdmin = f
   // Load user data when modal opens
   useEffect(() => {
     if (userData && isOpen) {
-          console.log("ROLE DATA:", userData.role, userData.roleId);
-
       setFormData({
         userId: userData.id || '',
         email: userData.email || '',
         nationalId: userData.nationalId || '',
         employeeId: userData.employeeId || '',
-        role: userData.role?.name || '',
+        role: userData.role?.id ? String(userData.role.id) : '',
+        roleName: userData.role?.name || '',
       });
     }
   }, [userData, isOpen]);
@@ -58,14 +58,13 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData, isAdmin = f
     e.preventDefault();
     
     if (validateForm()) {
-      // Only send fields that should be updated
       const updateData = {
         email: formData.email,
       };
       
-      // Only admin can update these
-      if (isAdmin) {
-        if (formData.role) updateData.role = parseInt(formData.role);
+      // Only admin can update role — send as integer roleId
+      if (isAdmin && formData.role) {
+        updateData.roleId = parseInt(formData.role, 10);
       }
       
       if (onSubmit) {
@@ -180,8 +179,13 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData, isAdmin = f
                 <option value="1">System Administrator</option>
                 <option value="2">Emergency Dispatcher</option>
                 <option value="3">Road Observer</option>
-                <option value="4">Data Analyst</option>
+                <option value="4">Node Maintenance Crew</option>
               </select>
+              {formData.roleName && (
+                <p className="mt-1 text-xs text-safe-text-gray">
+                  Current role: <span className="font-medium text-safe-text-dark capitalize">{formData.roleName.replace(/_/g, ' ')}</span>
+                </p>
+              )}
               {errors.role && (
                 <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   {errors.role}

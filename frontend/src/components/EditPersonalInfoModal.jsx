@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { validateEgyptianPhone } from '../utils/egyptianValidation';
 
 /**
  * Edit Personal Information Modal
@@ -48,7 +49,12 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
 
     if (!formData.fullName) newErrors.fullName = 'Full name is required';
     if (!formData.username) newErrors.username = 'Username is required';
-    if (!formData.phone) newErrors.phone = 'Phone number is required';
+    if (!formData.phone) {
+      newErrors.phone = 'Phone number is required';
+    } else {
+      const { valid, error: phoneError } = validateEgyptianPhone(formData.phone);
+      if (!valid) newErrors.phone = phoneError;
+    }
     if (!formData.department) newErrors.department = 'Department is required';
     if (!formData.officeLocation) newErrors.officeLocation = 'Office location is required';
 
@@ -129,6 +135,7 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
               label="Phone Number"
               value={formData.phone}
               error={errors.phone}
+              placeholder="01X XXXX XXXX"
               onChange={(e) => handleInputChange('phone', e.target.value)}
             />
 
@@ -218,7 +225,7 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
 }
 
 /* ── Reusable Input Field ── */
-function InputField({ label, value, error, onChange }) {
+function InputField({ label, value, error, onChange, placeholder = '' }) {
   return (
     <div>
       <label className="block text-sm font-medium text-safe-text-dark mb-2">
@@ -228,6 +235,7 @@ function InputField({ label, value, error, onChange }) {
         type="text"
         value={value}
         onChange={onChange}
+        placeholder={placeholder}
         className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg focus:ring-2 focus:ring-safe-blue-btn/30 ${
           error ? 'border-safe-danger' : 'border-safe-border'
         }`}

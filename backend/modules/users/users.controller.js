@@ -8,11 +8,12 @@ const usersService   = require('./users.service');
 const AppError       = require('../../utils/AppError');
 
 exports.listUsers = catchAsync(async (req, res) => {
-  const { page, limit, role, isActive } = req.query;
+  const { page, limit, role, isActive, search } = req.query;
   const result = await usersService.listUsers({
     page:     page     ? parseInt(page, 10)  : 1,
     limit:    limit    ? parseInt(limit, 10) : 20,
     role,
+    search,
     isActive: isActive !== undefined ? isActive === 'true' : undefined,
   });
   res.status(200).json({ status: 'success', data: result });
@@ -49,10 +50,26 @@ exports.updateProfilePhoto = catchAsync(async (req, res) => {
   res.status(200).json({ status: 'success', data: result });
 });
 
+exports.updateUser = catchAsync(async (req, res) => {
+  const updated = await usersService.updateUserByAdmin(
+    req.params.id,
+    req.body,
+    req.user.id
+  );
+
+  res.status(200).json({ status: 'success', data: updated });
+});
+
 exports.deactivateUser = catchAsync(async (req, res) => {
   await usersService.deactivateUser(req.params.id, req.user.id);
-  res.status(200).json({ status: 'success', message: 'User deactivated' });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User deactivated'
+  });
 });
+
+
 
 exports.reactivateUser = catchAsync(async (req, res) => {
   await usersService.reactivateUser(req.params.id, req.user.id);

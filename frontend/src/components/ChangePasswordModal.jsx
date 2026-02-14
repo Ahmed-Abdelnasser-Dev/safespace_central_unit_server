@@ -7,7 +7,7 @@ import { authAPI } from '../services/api';
  * Change Password Modal
  * Allows users to update their password with validation
  */
-function ChangePasswordModal({ isOpen, onClose }) {
+function ChangePasswordModal({ isOpen, onClose, isMandatory = false }) {
   const { user } = useSelector((state) => state.auth);  // Get user from Redux
   
   const [formData, setFormData] = useState({
@@ -139,14 +139,18 @@ function ChangePasswordModal({ isOpen, onClose }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-bold text-safe-text-dark">Change Password</h3>
-            <p className="text-xs text-safe-text-gray mt-1">Update your account password</p>
+            <p className="text-xs text-safe-text-gray mt-1">
+              {isMandatory ? 'You must set a new password to continue' : 'Update your account password'}
+            </p>
           </div>
-          <button 
-            onClick={handleClose}
-            className="text-safe-text-gray hover:text-safe-text-dark transition-colors"
-          >
-            <FontAwesomeIcon icon="xmark" className="text-xl" />
-          </button>
+          {!isMandatory && (
+            <button 
+              onClick={handleClose}
+              className="text-safe-text-gray hover:text-safe-text-dark transition-colors"
+            >
+              <FontAwesomeIcon icon="xmark" className="text-xl" />
+            </button>
+          )}
         </div>
 
         {/* Form */}
@@ -287,14 +291,16 @@ function ChangePasswordModal({ isOpen, onClose }) {
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-safe-text-dark bg-safe-bg rounded-lg hover:bg-safe-border/50 transition-colors"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
+            {!isMandatory && (
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-safe-text-dark bg-safe-bg rounded-lg hover:bg-safe-border/50 transition-colors"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-safe-blue-btn rounded-lg hover:bg-safe-blue-btn/90 transition-colors disabled:opacity-50"

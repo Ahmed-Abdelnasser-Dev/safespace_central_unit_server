@@ -19,24 +19,29 @@ export const loginUser = createAsyncThunk(
     try {
       const response = await authAPI.login(email, password);
       
-      // Handle different login scenarios
+      // Handle mustChangePassword — backend returns tokens alongside the flag
       if (response.mustChangePassword) {
+        // Store tokens so ProtectedRoute lets the user through
+        if (response.accessToken && response.refreshToken) {
+          sessionStorage.setItem('accessToken', response.accessToken);
+          sessionStorage.setItem('refreshToken', response.refreshToken);
+          const user = await userAPI.getMe();
+          sessionStorage.setItem('user', JSON.stringify(user));
+          return { mustChangePassword: true, user, tokens: response };
+        }
+        // Fallback: no tokens returned — userId only
         return { mustChangePassword: true, userId: response.userId };
       }
       
       if (response.mfaRequired) {
-        // For now, we skip MFA as per requirements
-        // In production, you'd redirect to MFA screen
         return { mfaRequired: true, userId: response.userId };
       }
 
       // Successful login with tokens
       if (response.accessToken && response.refreshToken) {
-        // Store tokens in sessionStorage (NOT localStorage for security)
         sessionStorage.setItem('accessToken', response.accessToken);
         sessionStorage.setItem('refreshToken', response.refreshToken);
 
-        // Fetch user profile
         const user = await userAPI.getMe();
         sessionStorage.setItem('user', JSON.stringify(user));
 
@@ -166,6 +171,11 @@ const authSlice = createSlice({
         
         if (action.payload.mustChangePassword) {
           state.mustChangePassword = true;
+          // If we got tokens+user, set authenticated so ProtectedRoute passes
+          if (action.payload.user) {
+            state.user = action.payload.user;
+            state.isAuthenticated = true;
+          }
         } else if (action.payload.mfaRequired) {
           state.mfaRequired = true;
         } else {

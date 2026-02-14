@@ -1,12 +1,15 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { updateUserProfile, fetchCurrentUser } from '../features/auth/authSlice';
 import { userAPI } from '../services/api';
 import { formatEgyptianPhone, formatEgyptianNID } from '../utils/egyptianValidation';
 import EditPersonalInfoModal from './EditPersonalInfoModal';
 import EditAccountInfoModal from './EditAccountInfoModal';
 import ChangePasswordModal from './ChangePasswordModal';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 /**
  * Profile Screen Component - EXACT ORIGINAL UI WITH REAL DATA
@@ -15,45 +18,40 @@ import ChangePasswordModal from './ChangePasswordModal';
  */
 function Profile({ onLogout }) {
   const dispatch = useDispatch();
-  const { user, loading } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading, mustChangePassword } = useSelector((state) => state.auth);
   
   const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  // Auto-open password modal when redirected from first login
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(
+    location.state?.mustChangePassword === true
+  );
+
+  // Prevent navigation away when mustChangePassword is true
+  useEffect(() => {
+    if (!mustChangePassword && !location.state?.mustChangePassword) return;
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Block react-router navigation away from profile while password must be changed
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [mustChangePassword, location.state]);
 
   // Check if user is admin
   const isAdmin = user?.role?.name === 'admin';
-
-  // Handle profile photo update
-  // const handlePhotoUpload = async (event) => {
-  //   const file = event.target.files[0];
-  //   if (!file) return;
-
-  //   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-  //     alert('Please upload a valid image file (JPEG, PNG, or WebP)');
-  //     return;
-  //   }
-
-  //   if (file.size > 5 * 1024 * 1024) {
-  //     alert('File size must be less than 5MB');
-  //     return;
-  //   }
-
-  //   try {
-  //     await userAPI.updatePhoto(file);
-  //     await dispatch(fetchCurrentUser()).unwrap();
-  //     alert('Profile photo updated successfully');
-  //   } catch (error) {
-  //     console.error('Photo upload error:', error);
-  //     alert('Failed to update profile photo');
-  //   }
-  // };
 
     const handlePhotoUpload = async (event) => {
       const file = event.target.files[0];
       if (!file) return;
   
-      // Validate file type and size
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         alert('Please upload a valid image file (JPEG, PNG, or WebP)');
         return;
@@ -65,7 +63,7 @@ function Profile({ onLogout }) {
       }
   
       try {
-        const updatedUser = await userAPI.updatePhoto(file);
+        await userAPI.updatePhoto(file);
         dispatch(fetchCurrentUser());
         alert('Profile photo updated successfully');
       } catch (error) {
@@ -98,6 +96,13 @@ function Profile({ onLogout }) {
     }
   };
 
+  // After password change, clear the mustChangePassword state & navigate
+  const handlePasswordModalClose = () => {
+    setIsPasswordModalOpen(false);
+    // If the password was just changed, refresh user data
+    dispatch(fetchCurrentUser());
+  };
+
   // Loading state
   if (loading || !user) {
     return (
@@ -110,6 +115,13 @@ function Profile({ onLogout }) {
     );
   }
 
+  // Build full photo URL from relative path stored in DB
+  const photoUrl = user.profilePhotoUrl
+    ? user.profilePhotoUrl.startsWith('http')
+      ? user.profilePhotoUrl
+      : `${API_BASE_URL}${user.profilePhotoUrl}`
+    : null;
+
   // Prepare profile data from user object
   const profile = {
     fullName: user.fullName || 'Not set',
@@ -120,14 +132,12 @@ function Profile({ onLogout }) {
     email: user.email,
     phone: user.phone ? formatEgyptianPhone(user.phone) : 'Not set',
     memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown',
-    // Personal Info
     phoneNumber: user.phone ? formatEgyptianPhone(user.phone) : 'Not set',
     birthDate: user.birthdate ? new Date(user.birthdate).toLocaleDateString() : 'Not set',
     gender: user.gender || 'Not set',
     department: user.department || 'Not set',
     officeLocation: user.officeLocation || 'Not set',
     address: user.address || 'Not set',
-    // Account Info
     userId: user.employeeId || user.id,
     nationalId: user.nationalId ? formatEgyptianNID(user.nationalId) : 'Not set',
   };
@@ -150,7 +160,7 @@ function Profile({ onLogout }) {
       iconColor: 'text-safe-blue-btn',
       iconBg: 'bg-safe-white',
       title: 'Updated profile information',
-      subtitle: user.updatedAt && user.createdAt && new Date(user.updatedAt) > new Date(user.createdAt)
+      subtitle: user.updatedAt && user.createdAt && new Date(user.updatedAt).getTime() - new Date(user.createdAt).getTime() > 5000
         ? `${new Date(user.updatedAt).toLocaleString()} • ${profile.officeLocation}`
         : 'No updates yet'
     },
@@ -164,21 +174,47 @@ function Profile({ onLogout }) {
         ? `${new Date(user.passwordChangedAt).toLocaleDateString()} • ${profile.officeLocation}`
         : user.mustChangePassword
           ? 'Password change required'
-          : 'Default password'
+          : 'Default password — please change it'
     }
   ];
 
   return (
     <div className="flex-1 overflow-y-auto bg-safe-bg p-7 space-y-5">
 
+      {/* ── Must Change Password Banner ── */}
+      {(mustChangePassword || location.state?.mustChangePassword) && !isPasswordModalOpen && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-xl px-5 py-4 flex items-center gap-4">
+          <FontAwesomeIcon icon="triangle-exclamation" className="text-yellow-500 text-lg flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-yellow-800">Password Change Required</p>
+            <p className="text-xs text-yellow-700 mt-0.5">You must change your password before continuing. You cannot navigate away from this page until you do.</p>
+          </div>
+          <button
+            onClick={() => setIsPasswordModalOpen(true)}
+            className="px-4 py-2 text-xs font-semibold text-white bg-yellow-500 hover:bg-yellow-600 rounded-lg transition-colors flex-shrink-0"
+          >
+            Change Now
+          </button>
+        </div>
+      )}
       {/* ── Profile Hero Card ── */}
       <div className="bg-white rounded-xl border border-safe-border p-7">
         <div className="flex items-start justify-between">
           {/* Left: Avatar + Info */}
           <div className="flex items-start gap-6">
             {/* Avatar */}
-            <div className="w-24 h-24 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-bold text-3xl flex-shrink-0">
-              {profile.avatar}
+            <div className="w-24 h-24 rounded-full bg-safe-blue-btn text-white flex items-center justify-center font-bold text-3xl flex-shrink-0 overflow-hidden">
+              {photoUrl ? (
+                <img 
+                  src={photoUrl} 
+                  alt={profile.fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                />
+              ) : null}
+              <span style={{ display: photoUrl ? 'none' : 'flex' }} className="w-full h-full items-center justify-center">
+                {profile.avatar}
+              </span>
             </div>
 
             {/* Info */}
@@ -378,7 +414,8 @@ function Profile({ onLogout }) {
       {/* Change Password Modal */}
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
+        onClose={handlePasswordModalClose}
+        isMandatory={!!(mustChangePassword || location.state?.mustChangePassword)}
       />
 
     </div>
