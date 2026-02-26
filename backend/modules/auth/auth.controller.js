@@ -2,8 +2,6 @@
  * auth.controller.js — Auth controller
  *
  * Thin layer only: extract input → call service → return response.
- * No business logic, no DB access, no token logic here.
- *
  * IP and User-Agent are extracted here and passed to the service
  * so the audit log has full context without the service touching req.
  */
@@ -61,7 +59,7 @@ exports.verifyMfa = catchAsync(async (req, res, next) => {
 // ─── Change Password ──────────────────────────────────────────────────────────
 exports.changePassword = catchAsync(async (req, res, next) => {
   const { currentPassword, newPassword } = req.body;
-  const userId    = req.user?.id || req.body.userId; // req.user if protect runs, else from body for first-login
+  const userId    = req.body.userId || req.user?.id; // req.user if protect runs, else from body for first-login
   const ipAddress = req.ip;
   const userAgent = req.headers['user-agent'];
 

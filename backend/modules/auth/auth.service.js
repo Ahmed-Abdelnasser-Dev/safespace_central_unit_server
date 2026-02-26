@@ -138,11 +138,25 @@ async function login({ email, password, ipAddress, userAgent }) {
     data: { failedLoginAttempts: 0, lastLoginAt: new Date() },
   });
 
-  // Force password change — return flag, NOT an error
-  // Frontend redirects to /change-password screen
+  // Force password change — issue FULL tokens so frontend can call /users/me,
+  // but include mustChangePassword flag so frontend locks navigation to /profile.
   if (user.mustChangePassword) {
+    const accessToken  = signAccessToken(user.id, user.role.name);
+    const refreshToken = crypto.randomUUID();
+
+    await prisma.refreshToken.create({
+      data: {
+        userId:    user.id,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        ipAddress,
+        userAgent,
+      },
+    });
+
     await audit({ userId: user.id, role: user.role.name, eventType: 'auth_success', action: 'login', resource: 'users', success: true, failureReason: 'must_change_password', ipAddress, userAgent });
-    return { mustChangePassword: true, userId: user.id };
+    logger.info(`User logged in (must change password): ${user.id} role=${user.role.name}`);
+    return { mustChangePassword: true, userId: user.id, accessToken, refreshToken };
   }
 
   // MFA required

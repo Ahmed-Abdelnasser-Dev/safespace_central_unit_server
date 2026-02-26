@@ -53,9 +53,17 @@ const protect = catchAsync(async (req, res, next) => {
     throw new AppError('Authentication required', 401);
   }
 
-  // 4. Block access until password is changed
+  // 4. Block most routes until password is changed.
+  //    EXCEPTIONS:
+  //      GET  /users/me            — needed right after login to load user into Redux
+  //      POST /auth/change-password — how they actually change the password
+  //    Everything else returns 403 until they comply.
   if (user.mustChangePassword) {
-    throw new AppError('Password change required before accessing this resource', 403);
+    const isGetMe          = req.method === 'GET'  && req.path === '/me';
+    const isChangePassword = req.method === 'POST' && req.originalUrl.includes('/auth/change-password');
+    if (!isGetMe && !isChangePassword) {
+      throw new AppError('Password change required before accessing this resource', 403);
+    }
   }
 
   // 5. Attach to request — controllers use req.user

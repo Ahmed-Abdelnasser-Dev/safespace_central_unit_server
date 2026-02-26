@@ -9,10 +9,12 @@
 
 import { configureStore } from '@reduxjs/toolkit';
 import nodesReducer from '../features/nodeMaintainer/nodesSlice.js';
+import authReducer from '../features/auth/authSlice.js';
 
 export const store = configureStore({
   reducer: {
     nodes: nodesReducer,
+    auth: authReducer, 
   },
 });
 

@@ -5,34 +5,37 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
  * Edit User Modal
  * Security: Validates permissions before allowing edits
  */
-function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData }) {
+function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData, isAdmin = false }) {
   const [formData, setFormData] = useState({
     userId: '',
     email: '',
     nationalId: '',
+    employeeId: '',
     role: '',
-    status: ''
+    roleName: '',
   });
 
   const [errors, setErrors] = useState({});
 
   // Load user data when modal opens
   useEffect(() => {
-    if (userData) {
+    if (userData && isOpen) {
       setFormData({
         userId: userData.id || '',
         email: userData.email || '',
-        nationalId: userData.nationalId || '12345678901234', // Mock data
-        role: userData.role || '',
+        nationalId: userData.nationalId || '',
+        employeeId: userData.employeeId || '',
+        role: userData.role?.id ? String(userData.role.id) : '',
+        roleName: userData.role?.name || '',
       });
     }
-  }, [userData]);
+  }, [userData, isOpen]);
 
   // Security: Validate email format
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  // const validateEmail = (email) => {
+  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //   return emailRegex.test(email);
+  // };
 
   const handleInputChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
@@ -44,34 +47,28 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData }) {
   // Security: Form validation
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.email) {
-      newErrors.email = 'Email address is required';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.role) {
-      newErrors.role = 'Role is required';
-    }
-
-    if (!formData.status) {
-      newErrors.status = 'Status is required';
-    }
-
+    if (!formData.email) newErrors.email = 'Email is required';
+    if (!isAdmin && !formData.nationalId) newErrors.nationalId = 'National ID is required';
+    if (isAdmin && !formData.role) {newErrors.role = 'Role is required';}
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Security: In production, validate user permissions before updating
-      console.log('Updating user with validated data:', formData);
+      const updateData = {
+        email: formData.email,
+      };
+      
+      // Only admin can update role — send as integer roleId
+      if (isAdmin && formData.role) {
+        updateData.roleId = parseInt(formData.role, 10);
+      }
       
       if (onSubmit) {
-        onSubmit(formData);
+        await onSubmit(updateData);
       }
       
       handleClose();
@@ -79,12 +76,6 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData }) {
   };
 
   const handleClose = () => {
-    setFormData({
-      userId: '',
-      email: '',
-      nationalId: '',
-      role: '',
-    });
     setErrors({});
     onClose();
   };
@@ -185,11 +176,16 @@ function EditAccountInfoModal({ isOpen, onClose, onSubmit, userData }) {
                 }`}
               >
                 <option value="">Select role...</option>
-                <option value="System Administrator">System Administrator</option>
-                <option value="Emergency Dispatcher">Emergency Dispatcher</option>
-                <option value="Road Observer">Road Observer</option>
-                <option value="Data Analyst">Data Analyst</option>
+                <option value="1">System Administrator</option>
+                <option value="2">Emergency Dispatcher</option>
+                <option value="3">Road Observer</option>
+                <option value="4">Node Maintenance Crew</option>
               </select>
+              {formData.roleName && (
+                <p className="mt-1 text-xs text-safe-text-gray">
+                  Current role: <span className="font-medium text-safe-text-dark capitalize">{formData.roleName.replace(/_/g, ' ')}</span>
+                </p>
+              )}
               {errors.role && (
                 <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   {errors.role}

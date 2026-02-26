@@ -9,7 +9,7 @@ const createUserSchema = {
     email:      z.string().email('Invalid email format'),
     roleId:     z.number().int().positive('Invalid role'),
     nationalId: z.string().min(5).max(20),
-    employeeId: z.string().min(3).max(20),
+    employeeId: z.string().min(3).max(20).optional(),
   }),
 };
 
@@ -36,6 +36,7 @@ const listUsersSchema = {
   query: z.object({
     page:     z.string().optional(),
     limit:    z.string().optional(),
+    search:   z.string().optional(),
     role:     z.enum(['admin', 'emergency_dispatcher', 'road_observer', 'node_maintenance_crew']).optional(),
     isActive: z.enum(['true', 'false']).optional(),
   }),

@@ -23,13 +23,21 @@ const { logger } = require('../../utils/logger');
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 10;
 
 // ─── List all users (admin only) ──────────────────────────────────────────────
-async function listUsers({ page = 1, limit = 20, role, isActive } = {}) {
+async function listUsers({ page = 1, limit = 20, role, isActive, search } = {}) {
   const skip = (page - 1) * limit;
 
   const where = {
     deletedAt: null,
     ...(role     && { role: { name: role } }),
     ...(isActive !== undefined && { isActive }),
+    ...(search && {
+      OR: [
+        { fullName:   { contains: search, mode: 'insensitive' } },
+        { email:      { contains: search, mode: 'insensitive' } },
+        { username:   { contains: search, mode: 'insensitive' } },
+        { employeeId: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
   };
 
   const [users, total] = await Promise.all([
@@ -89,9 +97,11 @@ async function getUserById(targetId, requestingUser) {
       accountLocked:   true,
       lastLoginAt:     true,
       createdAt:       true,
+      updatedAt:       true,
+      passwordChangedAt: true,
       mustChangePassword: true,
       mfaEnabled:      true,
-      role: { select: { name: true, description: true } },
+      role: { select: { id: true, name: true, description: true } },
     },
   });
 
@@ -99,9 +109,33 @@ async function getUserById(targetId, requestingUser) {
   return user;
 }
 
+function generateEmployeeId(roleName) {
+  const prefix = {
+    'admin': 'EMP-ADM',
+    'emergency_dispatcher': 'EMP-DIS',
+    'road_observer': 'EMP-OBS',
+    'node_maintenance_crew': 'EMP-MNT'
+  }[roleName] || 'EMP-USR';
+  
+  const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${prefix}-${randomNum}`;
+}
+
 // ─── Create user (admin only) ─────────────────────────────────────────────────
 async function createUser({ email, roleId, nationalId, employeeId, createdByUserId }) {
-  // Check for duplicates
+  // Get role to generate employeeId
+  const role = await prisma.role.findUnique({ where: { id: roleId } });
+
+  // Auto-generate employeeId if not provided
+  if (!employeeId) {
+    employeeId = generateEmployeeId(role.name);
+    
+    // Ensure uniqueness
+    while (await prisma.user.findUnique({ where: { employeeId } })) {
+      employeeId = generateEmployeeId(role.name);
+    }
+  }
+  
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email }, { nationalId }, { employeeId }], deletedAt: null },
   });
@@ -185,6 +219,43 @@ async function updateProfilePhoto(userId, photoUrl) {
   });
 }
 
+// ─── Update user by admin ─────────────────────────────────────────────────────
+async function updateUserByAdmin(targetId, { email, roleId }, adminId) {
+  // Prevent admin from accidentally removing their own role
+  const updates = {};
+
+  if (email) {
+    // Check email uniqueness
+    const existing = await prisma.user.findFirst({
+      where: { email, id: { not: targetId }, deletedAt: null },
+    });
+    if (existing) throw new AppError('Email already in use', 409);
+    updates.email = email;
+  }
+
+  if (roleId) {
+    const role = await prisma.role.findUnique({ where: { id: parseInt(roleId, 10) } });
+    if (!role) throw new AppError('Invalid role', 400);
+    updates.roleId = parseInt(roleId, 10);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError('No valid fields to update', 400);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: targetId },
+    data: updates,
+    select: {
+      id: true, email: true, employeeId: true,
+      role: { select: { id: true, name: true } },
+    },
+  });
+
+  logger.info(`Admin ${adminId} updated user ${targetId}`);
+  return updated;
+}
+
 // ─── Deactivate user (admin only, soft) ───────────────────────────────────────
 async function deactivateUser(targetId, adminId) {
   if (targetId === adminId) throw new AppError('You cannot deactivate your own account', 400);
@@ -213,4 +284,22 @@ async function reactivateUser(targetId, adminId) {
   logger.info(`Admin ${adminId} reactivated user ${targetId}`);
 }
 
-module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, deactivateUser, reactivateUser };
+// ─── Soft-delete user (admin only) ────────────────────────────────────────────
+async function softDeleteUser(targetId, adminId) {
+  if (targetId === adminId) throw new AppError('You cannot delete your own account', 400);
+
+  const user = await prisma.user.findUnique({ where: { id: targetId, deletedAt: null } });
+  if (!user) throw new AppError('User not found', 404);
+
+  await prisma.user.update({
+    where: { id: targetId },
+    data: {
+      deletedAt: new Date(),
+      isActive:  false,
+    },
+  });
+
+  logger.info(`Admin ${adminId} soft-deleted user ${targetId}`);
+}
+
+module.exports = { listUsers, getUserById, createUser, updateMyProfile, updateProfilePhoto, updateUserByAdmin, deactivateUser, reactivateUser, softDeleteUser };

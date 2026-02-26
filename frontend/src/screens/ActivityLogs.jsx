@@ -21,7 +21,7 @@ function AdminActivityLogs() {
                 description="Manage users, Roles and System Settings"
             ></UserManagementHeader>
 
-              <div className="flex-shrink-0 mt-6 mx-7" >
+              <div className="flex-1 overflow-y-auto mt-6 mx-7" >
                 {/* Cards */}
                 <UserManagementCards />
                 

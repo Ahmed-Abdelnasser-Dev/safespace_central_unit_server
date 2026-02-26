@@ -8,10 +8,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
  */
 function CreateUserModal({ isOpen, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
-    userId: '',
     email: '',
     nationalId: '',
-    role: '',
+    roleId: '',
     password: ''
   });
 
@@ -29,7 +28,7 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
       password += charset[array[i] % charset.length];
     }
     
-    setFormData({ ...formData, password });
+    setFormData(prev => ({ ...prev, password }));
   };
 
   // Security: Validate email format
@@ -38,29 +37,16 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
     return emailRegex.test(email);
   };
 
-  // Security: Validate user ID format
-  const validateUserId = (userId) => {
-    const userIdRegex = /^USR-\d{3}$/;
-    return userIdRegex.test(userId);
-  };
-
   const handleInputChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-    // Clear error when user starts typing
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors({ ...errors, [field]: '' });
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
   // Security: Comprehensive form validation
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.userId) {
-      newErrors.userId = 'User ID is required';
-    } else if (!validateUserId(formData.userId)) {
-      newErrors.userId = 'User ID must be in format USR-XXX';
-    }
 
     if (!formData.email) {
       newErrors.email = 'Email address is required';
@@ -72,10 +58,12 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
       newErrors.nationalId = 'National ID is required';
     } else if (formData.nationalId.length !== 14) {
       newErrors.nationalId = 'National ID must be 14 digits';
+    } else if (!/^\d{14}$/.test(formData.nationalId)) {
+      newErrors.nationalId = 'National ID must contain only digits';
     }
 
-    if (!formData.role) {
-      newErrors.role = 'Role is required';
+    if (!formData.roleId) {
+      newErrors.roleId = 'Role is required';
     }
 
     if (!formData.password) {
@@ -92,14 +80,15 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
     e.preventDefault();
     
     if (validateForm()) {
-      // Security: In production, send data over HTTPS with proper authentication
-      console.log('Creating user with validated data:', {
-        ...formData,
-        password: '[REDACTED]' // Never log actual passwords
-      });
+      const submitData = {
+        email: formData.email,
+        nationalId: formData.nationalId,
+        roleId: parseInt(formData.roleId, 10),
+        password: formData.password,
+      };
       
       if (onSubmit) {
-        onSubmit(formData);
+        onSubmit(submitData);
       }
       
       handleClose();
@@ -107,12 +96,10 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
   };
 
   const handleClose = () => {
-    // Clear sensitive data when closing
     setFormData({
-      userId: '',
       email: '',
       nationalId: '',
-      role: '',
+      roleId: '',
       password: ''
     });
     setErrors({});
@@ -128,45 +115,24 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
         {/* Modal Header */}
         <div className="px-8 py-6 border-b border-safe-border">
           <h2 className="text-xl font-bold text-safe-text-dark">Create New User</h2>
-          <p className="text-sm text-safe-text-gray mt-1">Create new user account</p>
+          <p className="text-sm text-safe-text-gray mt-1">Employee ID will be auto-generated based on role</p>
         </div>
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit}>
           <div className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto">
-            {/* User ID */}
-            <div>
-              <label className="block text-sm font-medium text-safe-text-dark mb-2">
-                User ID 
-              </label>
-              <input
-                type="text"
-                value={formData.userId}
-                onChange={(e) => handleInputChange('userId', e.target.value)}
-                placeholder="USR-001"
-                className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
-                  errors.userId ? 'border-safe-danger' : 'border-safe-border'
-                }`}
-              />
-              {errors.userId && (
-                <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
-                  <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
-                  {errors.userId}
-                </p>
-              )}
-            </div>
 
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-safe-text-dark mb-2">
-                Email Address 
+                Email Address <span className="text-safe-danger">*</span>
               </label>
               <div className="relative">
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="john.anderson@agency.safeg.gov"
+                  placeholder="user@agency.safeg.gov"
                   className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                     errors.email ? 'border-safe-danger' : 'border-safe-border'
                   }`}
@@ -183,15 +149,15 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
             {/* National ID */}
             <div>
               <label className="block text-sm font-medium text-safe-text-dark mb-2">
-                National ID 
+                National ID <span className="text-safe-danger">*</span>
               </label>
               <input
                 type="text"
                 value={formData.nationalId}
-                onChange={(e) => handleInputChange('nationalId', e.target.value)}
-                placeholder="12345678901234"
+                onChange={(e) => handleInputChange('nationalId', e.target.value.replace(/\D/g, ''))}
+                placeholder="14-digit national ID"
                 maxLength={14}
-                className={`w-full px-4 py-2.5 bg-safe-bg rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
+                className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                   errors.nationalId ? 'border-safe-danger' : 'border-safe-border'
                 }`}
               />
@@ -206,25 +172,25 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
             {/* Role */}
             <div>
               <label className="block text-sm font-medium text-safe-text-dark mb-2">
-                Role 
+                Role <span className="text-safe-danger">*</span>
               </label>
               <select
-                value={formData.role}
-                onChange={(e) => handleInputChange('role', e.target.value)}
+                value={formData.roleId}
+                onChange={(e) => handleInputChange('roleId', e.target.value)}
                 className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors cursor-pointer ${
-                  errors.role ? 'border-safe-danger' : 'border-safe-border'
+                  errors.roleId ? 'border-safe-danger' : 'border-safe-border'
                 }`}
               >
                 <option value="">Select role...</option>
-                <option value="admin">System Administrator</option>
-                <option value="dispatcher">Emergency Dispatcher</option>
-                <option value="road_observer">Road Observer</option>
-                <option value="analyst">Data Analyst</option>
+                <option value="1">System Administrator</option>
+                <option value="2">Emergency Dispatcher</option>
+                <option value="3">Road Observer</option>
+                <option value="4">Node Maintenance Crew</option>
               </select>
-              {errors.role && (
+              {errors.roleId && (
                 <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
-                  {errors.role}
+                  {errors.roleId}
                 </p>
               )}
             </div>
@@ -232,17 +198,16 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-safe-text-dark mb-2">
-                Generate Password 
+                Temporary Password <span className="text-safe-danger">*</span>
               </label>
               <div className="flex gap-3">
                 <div className="flex-1 relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    placeholder="Click generate to create secure password"
                     readOnly
-                    className={`w-full pl-10 pr-10 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
+                    placeholder="Click Generate to create secure password"
+                    className={`w-full pl-4 pr-10 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                       errors.password ? 'border-safe-danger' : 'border-safe-border'
                     }`}
                   />
@@ -259,9 +224,9 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                 <button
                   type="button"
                   onClick={generatePassword}
-                  className="px-4 py-2.5 bg-safe-bg border-safe-border text-safe-text-dark font-medium rounded-lg hover:bg-safe-bg transition-colors"
+                  className="px-4 py-2.5 bg-safe-bg border border-safe-border text-safe-text-dark font-medium rounded-lg hover:bg-safe-bg/80 transition-colors whitespace-nowrap"
                 >
-                  Generate Password
+                  Generate
                 </button>
               </div>
               {errors.password && (
@@ -277,7 +242,7 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                     <div className="flex-1">
                       <p className="text-xs font-medium text-safe-green mb-1">Secure Password Generated</p>
                       <p className="text-xs text-safe-text-gray">
-                        Make sure to copy this password and send it securely to the user. It won't be shown again.
+                        Send this password securely to the user. They will be required to change it on first login.
                       </p>
                     </div>
                   </div>

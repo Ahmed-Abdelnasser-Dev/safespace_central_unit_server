@@ -1,13 +1,6 @@
 /**
  * authorize.js — Role-Based Authorization Middleware
  *
- * Must run AFTER protect middleware (requires req.user).
- * Checks that the authenticated user's role is in the allowed list.
- *
- * Usage:
- *   router.get('/admin-only', protect, authorize('admin'), controller.handler);
- *   router.get('/multi-role', protect, authorize('admin', 'emergency_dispatcher'), handler);
- *
  * Security:
  * - Role is read from req.user (loaded fresh from DB by protect)
  * - NEVER accepted from request body, query, or headers
