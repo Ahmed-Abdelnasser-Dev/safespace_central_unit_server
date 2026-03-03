@@ -17,7 +17,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
@@ -35,8 +35,8 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - backend_uploads:/app/backend/uploads
-    command: ["sh", "-c", "npx prisma migrate deploy --schema=/app/backend/prisma/schema.prisma && node server.js"]
+      - backend_uploads:/app/uploads
+    command: ["sh", "-c", "npx prisma migrate deploy --schema=/app/prisma/schema.prisma && node server.js"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/health >/dev/null || exit 1"]
       interval: 20s
