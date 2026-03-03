@@ -67,8 +67,7 @@ app.set('io', io);
 wsManager.initialize(server);
 wsManager.startHealthCheck();
 
-// Start background heartbeat monitor for HTTP heartbeat endpoints
-startHeartbeatMonitor();
+
 
 // Socket.IO connection handler (for dashboard clients)
 io.on('connection', (socket) => {

@@ -104,13 +104,14 @@ model Incident {
   updatedAt             DateTime @updatedAt
   
   @@index([nodeId])
-  @@index([createdAt])
-enum RoleName {
-  admin
-  emergency_dispatcher
-  road_observer
-  node_maintenance_crew
-}
+  }
+
+  enum RoleName {
+    admin
+    emergency_dispatcher
+    road_observer
+    node_maintenance_crew
+  }
 
 enum PermissionAction {
   read

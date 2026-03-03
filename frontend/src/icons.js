@@ -12,7 +12,7 @@ import {
   faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
   faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate, faRotateRight,
   faBroom, faArrowsUpDownLeftRight, faRobot, faBalanceScale, faChevronUp, faChevronDown,
-  faBan, faExclamation, faImage, faUser, faRoad, faCircleInfo, faArrowsRotate, faChevronUp, faChevronDown
+  faBan, faExclamation, faImage
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -28,5 +28,5 @@ library.add(
   faRectangleList, faHeartPulse, faMap, faXmark, faRotateLeft, faFloppyDisk, faTriangleExclamation,
   faLayerGroup, faUser, faRoad, faCircleInfo, faArrowsRotate, faRotateRight,
   faBroom, faArrowsUpDownLeftRight, faRobot, faBalanceScale, faChevronUp, faChevronDown,
-  faBan, faExclamation, faImage, faUser, faRoad, faCircleInfo, faArrowsRotate, faChevronUp, faChevronDown
+  faBan, faExclamation, faImage
 );

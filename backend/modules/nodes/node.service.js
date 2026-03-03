@@ -210,13 +210,23 @@ async function checkHeartbeatTimeouts() {
     const nodes = await prisma.node.findMany({
       where: { status: 'online' }
     });
-    
+
+    if (!nodes || !Array.isArray(nodes)) {
+      logger.error('prisma.node.findMany did not return an array.');
+      return;
+    }
+
+    logger.info('Nodes fetched for heartbeat check:', nodes);
     const now = Date.now();
     for (const node of nodes) {
+      if (!node || !node.nodeId) {
+        logger.error('Malformed node object:', node);
+        continue;
+      }
       if (node.lastHeartbeat) {
         const lastHeartbeatTime = new Date(node.lastHeartbeat).getTime();
         const timeSinceHeartbeat = now - lastHeartbeatTime;
-        
+
         if (timeSinceHeartbeat > HEARTBEAT_TIMEOUT) {
           logger.warn(`Node ${node.nodeId} heartbeat timeout (${Math.round(timeSinceHeartbeat/1000)}s). Marking as offline.`);
           await prisma.node.update({
