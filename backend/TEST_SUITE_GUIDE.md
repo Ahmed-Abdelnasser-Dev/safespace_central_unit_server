@@ -12,7 +12,7 @@ This test suite validates the automated decision-making system for accident dete
 ## Running Tests
 ```bash
 cd /home/nasser/Projects/fullstack/SafeSpace/backend
-./test-blocked-lanes.sh
+./tests/blocked-lanes.sh
 ```
 
 ## Test Cases

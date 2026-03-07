@@ -1,5 +1,5 @@
 /**
- * users.routes.js — User management routes
+ * user.routes.js — User management routes
  *
  * All routes protected by JWT (protect).
  * Admin-only routes additionally protected by authorize('admin').
@@ -12,8 +12,8 @@ const router     = express.Router();
 const protect    = require('../../middleware/protect');
 const authorize  = require('../../middleware/authorize');
 const validate   = require('../../middleware/validate');
-const controller = require('./users.controller');
-const { createUserSchema, updateProfileSchema, userIdParamSchema, listUsersSchema } = require('./users.schema');
+const controller = require('./user.controller');
+const { createUserSchema, updateProfileSchema, userIdParamSchema, listUsersSchema } = require('./user.schema');
 
 // ─── Multer config for profile photos ─────────────────────────────────────────
 const storage = multer.diskStorage({

@@ -8,7 +8,7 @@
  * - Periodic heartbeat messages (every 5 seconds)
  * - Periodic video frames (every 1 second)
  * 
- * Usage: node test-heartbeat-video.js
+ * Usage: node tests/heartbeat-video.script.js
  * Press Ctrl+C to stop
  */
 
@@ -22,6 +22,7 @@ const path = require('path');
 const WS_URL = 'ws://localhost:5000/ws/nodes';
 const NODE_ID = 'safe-space-node-001';
 const TOKEN = 'dev-safe-space-token-001';
+const TEST_DURATION_MS = (parseInt(process.env.TEST_DURATION_SEC || '15', 10)) * 1000;
 
 // Timing configuration (in milliseconds)
 const HEARTBEAT_INTERVAL = 5000;  // Send heartbeat every 5 seconds
@@ -312,6 +313,12 @@ function connect() {
   wsConnection.on('error', (error) => {
     console.error('\n❌ WebSocket error:', error.message);
   });
+
+  // Auto-stop for deterministic test runs.
+  setTimeout(() => {
+    console.log(`\n⏱️  Test duration reached (${TEST_DURATION_MS / 1000}s)`);
+    cleanup();
+  }, TEST_DURATION_MS);
 }
 
 /**

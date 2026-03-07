@@ -12,10 +12,10 @@ const decisionService = require('./decision.service');
 /**
  * Test decision-making endpoint
  * 
- * @route POST /api/decision/analyze
+ * @route POST /api/decisions/analyze
  * @access Internal/Testing
  */
-exports.makeDecision = catchAsync(async (req, res) => {
+const makeDecision = catchAsync(async (req, res) => {
   const { nodeId, lanNumber, accidentPolygon, location, aiResults } = req.body;
   
   const result = await decisionService.makeDecision({
@@ -31,3 +31,7 @@ exports.makeDecision = catchAsync(async (req, res) => {
     data: result
   });
 });
+
+module.exports = {
+  makeDecision,
+};

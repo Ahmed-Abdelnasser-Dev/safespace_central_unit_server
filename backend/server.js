@@ -4,6 +4,7 @@
  */
 
 require('dotenv').config();
+const env = require('./config/env');
 const net = require('net');
 const http = require('http');
 const fs = require('fs');
@@ -14,13 +15,13 @@ const { logger } = require('./utils/logger');
 const wsManager = require('./utils/websocketManager');
 const { startHeartbeatMonitor } = require('./modules/nodes/node.service');
 
-const PORT = parseInt(process.env.PORT, 10) || 5000;
-const HOST = process.env.HOST || '0.0.0.0';
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4000';
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : [FRONTEND_URL, 'http://192.168.10.0/24']; 
+const PORT = env.PORT;
+const HOST = env.HOST;
+const NODE_ENV = env.NODE_ENV;
+const FRONTEND_URL = env.FRONTEND_URL;
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
+  ? env.ALLOWED_ORIGINS.split(',')
+  : [FRONTEND_URL, 'http://192.168.10.0/24'];
 
 // Create HTTP server and Socket.IO instance
 const server = http.createServer(app);

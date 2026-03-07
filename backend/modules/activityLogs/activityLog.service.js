@@ -1,5 +1,5 @@
 /**
- * activityLogs.service.js — Audit log reader service
+ * activityLog.service.js — Audit log reader service
  *
  * Read-only. Audit logs are append-only — never modified or deleted.
  * Admin sees all logs. Other roles see only their own.

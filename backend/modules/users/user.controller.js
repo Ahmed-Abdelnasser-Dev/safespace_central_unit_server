@@ -1,10 +1,10 @@
 /**
- * users.controller.js — Users controller
+ * user.controller.js — Users controller
  * Thin layer: extract input → call service → return response.
  */
 
 const catchAsync     = require('../../middleware/catchAsync');
-const usersService   = require('./users.service');
+const usersService   = require('./user.service');
 const AppError       = require('../../utils/AppError');
 
 exports.listUsers = catchAsync(async (req, res) => {

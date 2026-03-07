@@ -1,5 +1,5 @@
 /**
- * users.schema.js — Zod validation schemas for User endpoints
+ * user.schema.js — Zod validation schemas for User endpoints
  */
 
 const { z } = require('zod');

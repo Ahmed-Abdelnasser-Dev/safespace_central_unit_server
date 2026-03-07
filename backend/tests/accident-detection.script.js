@@ -6,7 +6,7 @@
  * Tests the node_accident_detected Socket.IO event that nodes emit
  * when they detect an accident.
  * 
- * Usage: node test-accident-detection.js
+ * Usage: node tests/accident-detection.script.js
  */
 
 const io = require('socket.io-client');

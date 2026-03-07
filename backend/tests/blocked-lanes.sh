@@ -3,7 +3,7 @@
 # Test Script for Blocked Lanes Decision Making
 # Tests various lane blocking scenarios with polygon intersections
 
-API_URL="http://localhost:5000/api/accident-detected"
+API_URL="http://localhost:5000/api/incidents/accident-detected"
 NODE_ID="safe-space-node-001"
 IMAGE_PATH="/home/nasser/Downloads/test-image.jpg"
 LAT="24.7136"

@@ -1,5 +1,5 @@
 /**
- * users.service.js — User management service
+ * user.service.js — User management service
  *
  * Handles:
  *   - Admin: list all users, create user, deactivate user
