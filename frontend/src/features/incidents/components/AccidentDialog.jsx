@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import Modal from '../../../components/ui/Modal.jsx';
-import Card from '../../../components/ui/Card.jsx';
-import Button from '../../../components/ui/Button.jsx';
+import { useEffect, useState } from 'react';
+import Modal from '@/components/ui/Modal.jsx';
+import Card from '@/components/ui/Card.jsx';
+import Button from '@/components/ui/Button.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faCircleCheck, faCircleXmark } from '@fortawesome/free-solid-svg-icons';
 import AccidentDialogHeader from './layout/AccidentDialogHeader.jsx';
 import AiAnalysisCard from './cards/AiAnalysisCard.jsx';
 import DecisionCard from './cards/DecisionCard.jsx';
 import OverridePanel from './override/OverridePanel.jsx';
-import MediaCarousel from './media/MediaCarousel.jsx';
-import AccidentPolygonDialog from './media/AccidentPolygonDialog.jsx';
-import { emitAdminAccidentResponse } from '../../../services/socketService.js';
+import AccidentMediaArea from './media/AccidentMediaArea.jsx';
+import { emitAdminAccidentResponse } from '@/services/socketService.js';
+import { showError } from '@/utils/toast';
 
 /**
  * AccidentDialog – Displays incoming accident with AI Analysis and Decision Results
@@ -24,7 +24,6 @@ import { emitAdminAccidentResponse } from '../../../services/socketService.js';
  * @param {object} props.incident
  */
 function AccidentDialog({ open, onClose, incident, onDecision }) {
-  const [polygonDialogOpen, setPolygonDialogOpen] = useState(false);
   // Initialize with AI Decision module's recommendations (not node defaults)
   const initialSpeedLimit = incident?.decision?.speedLimit
     || incident?.node?.defaultSpeedLimit
@@ -88,8 +87,6 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
     }
   }, [incident, initialLaneCount]);
 
-  useMemo(() => ({ aiData: incident?.ai || {}, decisionData: incident?.decision || {} }), [incident]);
-
   const handleConfirm = async () => {
     try {
       const hasModifications = 
@@ -137,21 +134,11 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         timestamp: new Date().toISOString(),
       };
 
-      console.log('📤 Sending admin confirmation:', {
-        incidentId: response.incidentId,
-        status: response.status,
-        speedLimit: response.speedLimit,
-        laneStatesLength: response.laneStates.length,
-        laneStates: response.laneStates,
-        accidentPolygon: response.accidentPolygon
-      });
-
       emitAdminAccidentResponse(response);
-      console.log('✅ Admin decision sent via socket');
       onDecision?.(response);
     } catch (e) {
       console.error('Confirm error', e);
-      alert(`Error: ${e.message}`);
+      showError(`Error: ${e.message}`);
     } finally {
       onClose?.();
     }
@@ -170,11 +157,10 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
       };
 
       emitAdminAccidentResponse(response);
-      console.log('✅ Admin rejection sent via socket');
       onDecision?.(response);
     } catch (e) {
       console.error('Reject error', e);
-      alert(`Error: ${e.message}`);
+      showError(`Error: ${e.message}`);
     } finally {
       onClose?.();
     }
@@ -207,21 +193,11 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
   const decisionData = incident?.decision || {};
   const nodeData = incident?.node || {};
   
-  // Debug logging
-  console.log('🔍 AccidentDialog Debug:', {
-    nodeData,
-    defaultLaneCount: nodeData.defaultLaneCount,
-    defaultLaneConfigLength: nodeData.defaultLaneConfiguration?.length,
-    fullNodeData: incident?.node
-  });
-  
   // Get actual values from node or decision data
   const defaultSpeedLimit = nodeData.defaultSpeedLimit || decisionData.originalSpeedLimit || 80;
   const defaultLaneCount = nodeData.defaultLaneCount
     || nodeData.defaultLaneConfiguration?.length
     || (decisionData.laneConfiguration ? decisionData.laneConfiguration.split(',').length : initialLaneCount || 3);
-  
-  console.log('🔍 Calculated defaultLaneCount:', defaultLaneCount);
   
   const laneNames = Array.from({ length: defaultLaneCount }, (_, index) => {
     const nodeName = nodeData.defaultLaneConfiguration?.[index]?.name;
@@ -262,28 +238,7 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
           {/* Top Row: Image + Override */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[16px]">
             <div>
-              <div className="bg-[#e5e7eb] rounded-[8px] overflow-hidden border border-[#d1d5db] relative max-w-[640px] mx-auto" style={{ aspectRatio: '1 / 1', minHeight: '320px', maxHeight: '640px' }}>
-                <MediaCarousel 
-                  mediaList={incident?.mediaList || []}
-                  accidentPolygon={incident?.accidentPolygon}
-                  nodePolygons={incident?.nodePolygons || []}
-                />
-                <button
-                  className="absolute top-2 right-2 z-20 bg-white/80 hover:bg-white text-safe-blue border border-safe-border rounded px-3 py-1 text-xs font-semibold shadow transition"
-                  onClick={() => setPolygonDialogOpen(true)}
-                  title="View Polygons"
-                >
-                  <FontAwesomeIcon icon="draw-polygon" className="mr-1" />
-                  View Polygons
-                </button>
-                <AccidentPolygonDialog
-                  open={polygonDialogOpen}
-                  onClose={() => setPolygonDialogOpen(false)}
-                  accidentPolygon={incident?.accidentPolygon}
-                  nodePolygons={incident?.nodePolygons || []}
-                  imageUrl={incident?.mediaList?.[0]?.url || ''}
-                />
-              </div>
+              <AccidentMediaArea incident={incident} />
             </div>
 
             <OverridePanel
@@ -341,36 +296,6 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
       </Card>
     </Modal>
   );
-}
-
-// Helper functions to format action names
-function formatActionTitle(action) {
-  return action
-    .split('_')
-    .map(w => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function formatActionDescription(action) {
-  const descriptions = {
-    'DISPATCH_EMERGENCY_SERVICES': 'Immediately dispatch ambulance and fire department',
-    'NOTIFY_EMERGENCY_SERVICES': 'Alert emergency services to standby',
-    'CLOSE_ALL_AFFECTED_LANES': 'Block all lanes impacted by accident',
-    'CLOSE_ACCIDENT_LANE': 'Close only the lane where accident occurred',
-    'REDUCE_SPEED_LIMIT_50_PERCENT': 'Reduce speed limit by 50%',
-    'REDUCE_SPEED_LIMIT_30_PERCENT': 'Reduce speed limit by 30%',
-    'REDUCE_SPEED_LIMIT_20_PERCENT': 'Reduce speed limit by 20%',
-    'MONITOR_SITUATION': 'Continue monitoring without immediate action',
-    'PRIORITY_AMBULANCE': 'Request priority ambulance dispatch',
-    'FIRE_DEPARTMENT_ALERT': 'Alert fire department for possible hazards',
-    'CLEAR_MULTIPLE_LANES': 'Coordinate clearing of multiple lanes',
-    'TOW_SERVICES_REQUIRED': 'Request tow truck services',
-    'CLOSE_LANES': 'Close affected lanes to traffic',
-    'REDUCE_SPEED_LIMIT': 'Reduce speed limit in area',
-    'ALERT_EMERGENCY_SERVICES': 'Contact emergency services',
-    'DISPLAY_MERGE_SIGNS': 'Show lane merge instructions on signs',
-  };
-  return descriptions[action] || 'Execute this action';
 }
 
 export default AccidentDialog;

@@ -9,33 +9,32 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateNodePolygons } from '../nodesSlice';
-import { useNodeVideoFeed } from '../../../hooks/useNodeVideoFeed';
+import { useNodeVideoFeed } from '@/hooks/useNodeVideoFeed';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import Button from '../../../components/ui/Button.jsx';
+import Button from '@/components/ui/Button.jsx';
+import { showError } from '@/utils/toast';
+import PolygonToolbar from './PolygonToolbar.jsx';
+import usePolygonEditor from './usePolygonEditor.js';
 
 function PolygonEditorDialog({ node, polygon, onClose }) {
   const dispatch = useDispatch();
   const canvasRef = useRef();
   const { currentFrame, lastSnapshot } = useNodeVideoFeed();
+
   const normalizePoints = (pts) => (pts || []).map((p) => {
     if (typeof p?.x === 'number' && typeof p?.y === 'number') return p;
     if (Array.isArray(p) && p.length >= 2) return { x: p[0], y: p[1] };
     return null;
   }).filter(Boolean);
 
-  const [points, setPoints] = useState(normalizePoints(polygon?.points));
-  const [isDrawing, setIsDrawing] = useState(false);
   const [polygonName, setPolygonName] = useState(polygon?.name || 'Lane Polygon');
-  const [toolMode, setToolMode] = useState('draw'); // draw | edit
-  const [selectedPointIndex, setSelectedPointIndex] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
-  const dragStartPointsRef = useRef(null);
-  const [undoStack, setUndoStack] = useState([]);
-  const [redoStack, setRedoStack] = useState([]);
-  // Always use 640x640 for node camera
-  const [videoAspect, setVideoAspect] = useState({ width: 640, height: 640 });
-  const videoSizeRef = useRef({ width: 640, height: 640 });
+
+  const {
+    points, toolMode, setToolMode, selectedPointIndex, setSelectedPointIndex,
+    undoStack, redoStack, drawPolygon,
+    handleCanvasClick, handleMouseDown, handleMouseMove, handleMouseUp,
+    handleUndo, handleRedo, handleClear, handleDeletePoint,
+  } = usePolygonEditor(normalizePoints(polygon?.points));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,204 +53,47 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
     }
 
     img.onload = () => {
-      // Always use 640x640 for canvas and polygons
-      const targetWidth = 640;
-      const targetHeight = 640;
-      videoSizeRef.current = { width: 640, height: 640 };
-      setVideoAspect({ width: 640, height: 640 });
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      canvas.width = 640;
+      canvas.height = 640;
+      ctx.drawImage(img, 0, 0, 640, 640);
       drawPolygon(ctx);
     };
 
     img.onerror = () => {
-      // Fallback: draw a solid color
       canvas.width = 640;
       canvas.height = 640;
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, 640, 640);
       ctx.fillStyle = '#fff';
       ctx.font = '16px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('Click to draw polygon points', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('Click to draw polygon points', 320, 320);
       drawPolygon(ctx);
     };
-  }, [points, currentFrame, lastSnapshot]);
-
-  const drawPolygon = (ctx) => {
-
-    if (points.length === 0) return;
-
-    // Draw lines between points
-    ctx.strokeStyle = 'rgb(59, 130, 246)';
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    if (points.length > 2) {
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.stroke();
-
-    // Draw points
-    ctx.fillStyle = 'rgb(59, 130, 246)';
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
-    points.forEach((p, idx) => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = idx === selectedPointIndex ? 'rgb(16, 185, 129)' : 'rgb(59, 130, 246)';
-      ctx.fill();
-      ctx.stroke();
-    });
-  };
-
-  const handleCanvasClick = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    if (toolMode !== 'draw') return;
-
-    setUndoStack((prev) => [...prev, points]);
-    setRedoStack([]);
-    setPoints([...points, { x, y }]);
-  };
-
-  const findNearestPoint = (x, y, radius = 10) => {
-    let nearestIndex = null;
-    let nearestDist = Infinity;
-
-    points.forEach((p, idx) => {
-      const dx = p.x - x;
-      const dy = p.y - y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= radius && dist < nearestDist) {
-        nearestIndex = idx;
-        nearestDist = dist;
-      }
-    });
-
-    return nearestIndex;
-  };
-
-  const handleMouseDown = (e) => {
-    if (toolMode !== 'edit') return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    const idx = findNearestPoint(x, y);
-    if (idx === null) return;
-
-    setSelectedPointIndex(idx);
-    setIsDragging(true);
-    dragStartPointsRef.current = points;
-    dragOffsetRef.current = {
-      x: points[idx].x - x,
-      y: points[idx].y - y,
-    };
-  };
-
-  const handleMouseMove = (e) => {
-    if (toolMode !== 'edit' || !isDragging || selectedPointIndex === null) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    const nextPoints = [...points];
-    nextPoints[selectedPointIndex] = {
-      x: Math.max(0, Math.min(canvas.width, x + dragOffsetRef.current.x)),
-      y: Math.max(0, Math.min(canvas.height, y + dragOffsetRef.current.y)),
-    };
-
-    setPoints(nextPoints);
-  };
-
-  const handleMouseUp = () => {
-    if (toolMode !== 'edit') return;
-    setIsDragging(false);
-    if (dragStartPointsRef.current) {
-      const startPoints = dragStartPointsRef.current;
-      const changed = startPoints.some((p, idx) => p.x !== points[idx]?.x || p.y !== points[idx]?.y);
-      if (changed) {
-        setUndoStack((prev) => [...prev, startPoints]);
-        setRedoStack([]);
-      }
-    }
-    dragStartPointsRef.current = null;
-  };
-
-  const handleUndo = () => {
-    if (undoStack.length === 0) return;
-    const previous = undoStack[undoStack.length - 1];
-    setUndoStack(undoStack.slice(0, -1));
-    setRedoStack((prev) => [...prev, points]);
-    setPoints(previous);
-    setSelectedPointIndex(null);
-  };
-
-  const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
-    setRedoStack(redoStack.slice(0, -1));
-    setUndoStack((prev) => [...prev, points]);
-    setPoints(next);
-    setSelectedPointIndex(null);
-  };
-
-  const handleClear = () => {
-    if (points.length === 0) return;
-    setUndoStack((prev) => [...prev, points]);
-    setRedoStack([]);
-    setPoints([]);
-    setSelectedPointIndex(null);
-  };
+  }, [points, currentFrame, lastSnapshot, drawPolygon]);
 
   const handleSave = () => {
     if (points.length < 3) {
-      alert('Polygon must have at least 3 points');
+      showError('Polygon must have at least 3 points');
       return;
     }
 
-    const canvas = canvasRef.current;
     const newPolygon = {
       id: polygon?.id || `poly-${Date.now()}`,
       name: polygonName,
-      laneNumber: polygon?.laneNumber, // Preserve lane association
+      laneNumber: polygon?.laneNumber,
       type: 'lane',
       points,
       baseWidth: 640,
       baseHeight: 640,
-      isEmpty: false, // Mark as defined
+      isEmpty: false,
     };
 
     const updatedPolygons = polygon?.id
       ? node.lanePolygons.map((p) => (p.id === polygon.id ? newPolygon : p))
       : [...(node.lanePolygons || []), newPolygon];
 
-    dispatch(updateNodePolygons({
-      nodeId: node.id,
-      lanePolygons: updatedPolygons,
-    }));
-
+    dispatch(updateNodePolygons({ nodeId: node.id, lanePolygons: updatedPolygons }));
     onClose();
   };
 
@@ -263,21 +105,15 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
           <h2 className="text-lg font-semibold text-safe-text-dark">
             Polygon Editor - {node.id}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-safe-bg rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-safe-bg rounded-lg transition-colors">
             <FontAwesomeIcon icon="xmark" className="text-lg text-safe-text-gray" />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Polygon Name Input */}
           <div>
-            <label className="text-sm font-medium text-safe-text-dark mb-1 block">
-              Polygon Name
-            </label>
+            <label className="text-sm font-medium text-safe-text-dark mb-1 block">Polygon Name</label>
             <input
               type="text"
               value={polygonName}
@@ -286,89 +122,20 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
             />
           </div>
 
-          {/* Canvas + Tool Sidebar */}
           <div className="flex flex-col lg:flex-row gap-4">
-            <div className="w-full lg:w-[64px] bg-[#f7f8f9] border border-[#e5e7eb] rounded-lg p-2 flex flex-col gap-2 items-center">
-              <Button
-                variant={toolMode === 'draw' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => {
-                  setToolMode('draw');
-                  setSelectedPointIndex(null);
-                }}
-                title="Add point"
-                aria-label="Add point"
-              >
-                <FontAwesomeIcon icon="plus" />
-              </Button>
-              <Button
-                variant={toolMode === 'edit' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setToolMode('edit')}
-                title="Move points"
-                aria-label="Move points"
-              >
-                <FontAwesomeIcon icon="arrows-up-down-left-right" />
-              </Button>
-              <div className="w-full h-px bg-[#e5e7eb]" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleUndo}
-                disabled={undoStack.length === 0}
-                title="Undo"
-                aria-label="Undo"
-              >
-                <FontAwesomeIcon icon="rotate-left" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRedo}
-                disabled={redoStack.length === 0}
-                title="Redo"
-                aria-label="Redo"
-              >
-                <FontAwesomeIcon icon="rotate-right" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClear}
-                disabled={points.length === 0}
-                title="Clear points"
-                aria-label="Clear points"
-              >
-                <FontAwesomeIcon icon="broom" />
-              </Button>
-              <div className="w-full h-px bg-[#e5e7eb]" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (selectedPointIndex === null) return;
-                  setUndoStack((prev) => [...prev, points]);
-                  setRedoStack([]);
-                  const nextPoints = points.filter((_, idx) => idx !== selectedPointIndex);
-                  setPoints(nextPoints);
-                  setSelectedPointIndex(null);
-                }}
-                disabled={selectedPointIndex === null}
-                title="Delete selected point"
-                aria-label="Delete selected point"
-              >
-                <FontAwesomeIcon icon="trash" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedPointIndex(null)}
-                title="Clear selection"
-                aria-label="Clear selection"
-              >
-                <FontAwesomeIcon icon="circle-xmark" />
-              </Button>
-            </div>
+            <PolygonToolbar
+              toolMode={toolMode}
+              setToolMode={setToolMode}
+              selectedPointIndex={selectedPointIndex}
+              setSelectedPointIndex={setSelectedPointIndex}
+              undoCount={undoStack.length}
+              redoCount={redoStack.length}
+              pointsCount={points.length}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onClear={handleClear}
+              onDeletePoint={handleDeletePoint}
+            />
 
             <div className="flex-1">
               <div className="mb-2 flex items-center gap-2">
@@ -396,7 +163,6 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
             </div>
           </div>
 
-          {/* Instructions */}
           <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
             <p className="font-medium mb-1">How to draw:</p>
             <ul className="text-xs space-y-1 list-disc list-inside">
@@ -411,24 +177,11 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t border-safe-border bg-safe-bg">
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-              disabled={points.length < 3}
-            >
-              <FontAwesomeIcon icon="floppy-disk" className="mr-1" />
-              Save Polygon
-            </Button>
-          </div>
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={points.length < 3}>
+            <FontAwesomeIcon icon="floppy-disk" className="mr-1" />
+            Save Polygon
+          </Button>
         </div>
       </div>
     </div>

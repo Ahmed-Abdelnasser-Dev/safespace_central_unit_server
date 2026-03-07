@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectSelectedNode } from "../nodesSlice";
-import { useNodeVideoFeed } from "../../../hooks/useNodeVideoFeed";
+import { useNodeVideoFeed } from "@/hooks/useNodeVideoFeed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMicrochip,

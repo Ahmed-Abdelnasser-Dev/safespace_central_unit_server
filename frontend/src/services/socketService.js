@@ -13,20 +13,11 @@ let socket = null;
  */
 export function initSocket() {
   if (!socket) {
-    console.log('🔌 Initializing Socket.IO connection to:', SOCKET_URL);
     socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
       reconnectionDelay: 1000,
       reconnection: true,
       reconnectionAttempts: 10,
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ Connected to Safe Space Central Unit with ID:', socket.id);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('❌ Disconnected from Central Unit');
     });
 
     socket.on('connect_error', (err) => {

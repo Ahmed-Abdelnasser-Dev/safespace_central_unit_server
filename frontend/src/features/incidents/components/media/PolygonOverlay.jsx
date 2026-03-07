@@ -1,5 +1,3 @@
-import React from 'react';
-
 function PolygonOverlay({ accidentPolygon, nodePolygons = [], overlayRect }) {
   const toPoints = (polygon) => {
     if (!polygon?.points?.length) return '';

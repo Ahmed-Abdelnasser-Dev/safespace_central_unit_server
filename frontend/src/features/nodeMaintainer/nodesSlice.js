@@ -287,9 +287,6 @@ const nodesSlice = createSlice({
       
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
-        console.log(
-          `🔄 Updating node ${nodeId}: status=${status}, lastBeat=${new Date(timestamp).toLocaleTimeString()}`
-        );
         node.status = status;
         node.health = { ...node.health, ...health };
         node.lastHeartbeat = timestamp;
@@ -318,8 +315,6 @@ const nodesSlice = createSlice({
         if (streetName !== undefined) node.streetName = streetName;
         
         node.lastUpdate = new Date().toISOString();
-      } else {
-        console.warn(`⚠️ Node ${nodeId} not found in state during heartbeat update`);
       }
     },
 

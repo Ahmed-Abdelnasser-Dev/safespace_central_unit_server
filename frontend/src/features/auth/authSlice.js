@@ -4,7 +4,7 @@
  */
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { authAPI, userAPI } from '../../services/api';
+import { authAPI, userAPI } from '@/services/api';
 
 // ============================================================================
 // Async Thunks
@@ -88,9 +88,6 @@ export const logoutUser = createAsyncThunk(
       if (refreshToken) {
         await authAPI.logout(refreshToken);
       }
-
-      // Log for debugging
-      console.log('Logout:', { userId, email: userEmail });
 
       sessionStorage.removeItem('accessToken');
       sessionStorage.removeItem('refreshToken');
