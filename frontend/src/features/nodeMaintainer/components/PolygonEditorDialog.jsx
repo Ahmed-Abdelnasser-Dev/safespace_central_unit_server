@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { API_BASE_URL } from '@/lib/apiConfig';
 import { updateNodePolygons } from '../nodesSlice';
 import { useNodeVideoFeed } from '@/hooks/useNodeVideoFeed';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -42,7 +43,7 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
 
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const baseUrl = API_BASE_URL;
 
     if (currentFrame?.frameData) {
       img.src = `data:image/jpeg;base64,${currentFrame.frameData}`;

@@ -13,7 +13,7 @@ const { z } = require('zod');
  * Schema for accident-detected endpoint body validation
  * Note: multipart/form-data fields come as strings, so we parse them
  */
-const accidentDetectedSchema = z.object({
+const accidentDetectedSchema = {
   body: z.object({
     lat: z.string({
       required_error: 'Latitude is required',
@@ -96,18 +96,14 @@ const accidentDetectedSchema = z.object({
       }
     }),
   }),
-  files: z.array(z.any(), {
-    required_error: 'At least one media file is required (images/videos)',
-    invalid_type_error: 'Media must be an array of files',
-  }).min(1, 'At least one media file is required (images/videos)'),
-});
+};
 
 /**
  * Schema for accident decision review (admin/operator confirmation)
  * Supports: CONFIRMED, MODIFIED, REJECTED
  * Validates actions, speed limits, and lane configurations.
  */
-const accidentDecisionSchema = z.object({
+const accidentDecisionSchema = {
   body: z.object({
     incidentId: z.string({ required_error: 'incidentId is required' }),
     nodeId: z.number({ required_error: 'nodeId is required' }).int().positive(),
@@ -137,13 +133,13 @@ const accidentDecisionSchema = z.object({
   }, {
     message: 'Invalid decision: CONFIRMED needs actions, REJECTED needs message, MODIFIED needs at least one modification.'
   }),
-});
+};
 
 /**
  * Schema for mobile/external accident report endpoint
  * Accepts reports from external servers without multipart uploads
  */
-const mobileAccidentDetectedSchema = z.object({
+const mobileAccidentDetectedSchema = {
   body: z.object({
     description: z.string({
       required_error: 'Description is required',
@@ -161,11 +157,7 @@ const mobileAccidentDetectedSchema = z.object({
     
     occurredAt: z.string().optional(),
   }),
-  files: z.array(z.any(), {
-    required_error: 'At least one media file is required (images/videos)',
-    invalid_type_error: 'Media must be an array of files',
-  }).min(1, 'At least one media file is required (images/videos)'),
-});
+};
 
 /**
  * Schema for server-to-server Mobile->Central accident report
@@ -179,7 +171,7 @@ const mobileAccidentDetectedSchema = z.object({
  *   media: [{ type: 'image'|'video', url: string }]
  * }
  */
-const mobileServerToCentralSchema = z.object({
+const mobileServerToCentralSchema = {
   body: z.object({
     accidentId: z.string().optional(),
     description: z.string({ required_error: 'description is required' }).min(1),
@@ -191,14 +183,14 @@ const mobileServerToCentralSchema = z.object({
       type: z.enum(['image', 'video']),
       url: z.string().refine((v) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')), { message: 'url must be a full URL or an absolute path starting with /' })
     })).optional(),
-  })
-});
+  }),
+};
 
 /**
  * Schema for node snapshot upload
  * POST /api/nodes/:nodeId/snapshot
  */
-const nodeSnapshotSchema = z.object({
+const nodeSnapshotSchema = {
   body: z.object({
     incident_id: z.string().optional(),
     timestamp: z.string(),
@@ -208,8 +200,7 @@ const nodeSnapshotSchema = z.object({
   params: z.object({
     nodeId: z.string().min(1, 'Node ID is required'),
   }),
-  files: z.array(z.any()).min(1, 'Snapshot image is required'),
-});
+};
 
 module.exports = {
   accidentDetectedSchema,

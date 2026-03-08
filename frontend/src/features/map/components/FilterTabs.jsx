@@ -9,12 +9,6 @@ function FilterTabs({ activeTab = 'call-emergency' }) {
     { id: 'traffic-rate', icon: 'chart-simple', label: 'Traffic Rate' },
   ];
 
-  const COLOR_BLUE = '#2575F3'; 
-  const COLOR_HOVER_BG = '#F4F5F7'; 
-  const COLOR_TEXT_DARK = '#323438'; 
-  const COLOR_TEXT_GRAY = '#60646B'; 
-  
-
   return (
    
     <div className="bg-white rounded-xl  mx-4 mt-4"> 
@@ -24,8 +18,7 @@ function FilterTabs({ activeTab = 'call-emergency' }) {
 
         {/* Call Emergency Button */}
         <button
-          className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 text-white shadow-sm"
-          style={{ backgroundColor: COLOR_BLUE }}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 text-white shadow-sm bg-safe-blue"
         >
           <FontAwesomeIcon icon="phone" className="text-sm" />
           <span>Call Emergency</span>
@@ -44,12 +37,9 @@ function FilterTabs({ activeTab = 'call-emergency' }) {
           return (
             <button
               key={tab.id}
-              className={`px-3.5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap`}
-              style={{
-                backgroundColor:  COLOR_HOVER_BG ,
-                color: isActive ? COLOR_TEXT_DARK : COLOR_TEXT_GRAY,
-              }}
-
+              className={`px-3.5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap bg-gray-100 ${
+                isActive ? 'text-safe-text-dark' : 'text-safe-text-gray'
+              }`}
             >
               <FontAwesomeIcon icon={tab.icon} className="text-sm" />
               <span>{tab.label}</span>

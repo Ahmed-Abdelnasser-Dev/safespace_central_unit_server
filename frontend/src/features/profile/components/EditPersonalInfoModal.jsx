@@ -224,21 +224,26 @@ function EditPersonalInfoModal({ isOpen, onClose, onSubmit, userData }) {
 
 /* ── Reusable Input Field ── */
 function InputField({ label, value, error, onChange, placeholder = '' }) {
+  const id = label.toLowerCase().replace(/\s+/g, '-');
+  const errorId = `${id}-error`;
   return (
     <div>
-      <label className="block text-sm font-medium text-safe-text-dark mb-2">
+      <label htmlFor={id} className="block text-sm font-medium text-safe-text-dark mb-2">
         {label}
       </label>
       <input
+        id={id}
         type="text"
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        aria-invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
         className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg focus:ring-2 focus:ring-safe-blue-btn/30 ${
           error ? 'border-safe-danger' : 'border-safe-border'
         }`}
       />
-      {error && <p className="mt-1.5 text-xs text-safe-danger">{error}</p>}
+      {error && <p id={errorId} className="mt-1.5 text-xs text-safe-danger">{error}</p>}
     </div>
   );
 }

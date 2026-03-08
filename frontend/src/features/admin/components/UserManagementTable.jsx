@@ -4,6 +4,7 @@ import { userAPI } from '@/services/api';
 import UsersTable from '@/components/ui/UsersTable';
 import EditAccountInfoModal from './EditAccountInfoModal';
 import { showSuccess, showError } from '@/utils/toast';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 /**
  * User Management Table
@@ -13,8 +14,6 @@ function UserManagementTable({ users = [], loading = false, onRefresh, onPageCha
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
   const getPhotoUrl = (user) => {
     if (!user.profilePhotoUrl) return null;

@@ -14,8 +14,7 @@ import SecuritySettingsCard from './SecuritySettingsCard';
 import EditPersonalInfoModal from './EditPersonalInfoModal';
 import EditAccountInfoModal from '@/features/admin/components/EditAccountInfoModal';
 import ChangePasswordModal from './ChangePasswordModal';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 function Profile({ onLogout }) {
   const dispatch = useDispatch();

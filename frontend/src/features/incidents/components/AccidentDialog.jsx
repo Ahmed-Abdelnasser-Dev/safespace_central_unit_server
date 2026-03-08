@@ -11,6 +11,7 @@ import OverridePanel from './override/OverridePanel.jsx';
 import AccidentMediaArea from './media/AccidentMediaArea.jsx';
 import { emitAdminAccidentResponse } from '@/services/socketService.js';
 import { showError } from '@/utils/toast';
+import { useOverrideState } from '../hooks/useOverrideState';
 
 /**
  * AccidentDialog – Displays incoming accident with AI Analysis and Decision Results
@@ -49,11 +50,19 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
   const [speedLimit, setSpeedLimit] = useState(initialSpeedLimit);
   const [laneConfiguration, setLaneConfiguration] = useState(initialLaneConfig);
   const [decisionType, setDecisionType] = useState('CONFIRMED');
-  const [overrideOpen, setOverrideOpen] = useState(false);
-  const [tempSpeedLimit, setTempSpeedLimit] = useState(initialSpeedLimit);
-  const [tempLaneConfig, setTempLaneConfig] = useState(initialLaneConfig);
-  const [allLanesState, setAllLanesState] = useState('open');
-  const [laneOverrideMode, setLaneOverrideMode] = useState('per');
+
+  const override = useOverrideState({
+    initialSpeedLimit,
+    initialLaneConfig,
+    setSpeedLimit,
+    setLaneConfiguration,
+    setDecisionType,
+    getDefaultLaneCount: () =>
+      incident?.node?.defaultLaneCount
+      || incident?.node?.defaultLaneConfiguration?.length
+      || override.tempLaneConfig.length
+      || 3,
+  });
 
   // Update state when incident changes
   useEffect(() => {
@@ -79,11 +88,7 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
       setLaneConfiguration(configStates);
       setSelected(incident.decision?.actions || []);
       setDecisionType('CONFIRMED');
-      setTempSpeedLimit(aiSpeedLimit);
-      setTempLaneConfig(configStates);
-      setAllLanesState(configState || 'open');
-      setLaneOverrideMode('per');
-      setOverrideOpen(false);
+      override.reset(aiSpeedLimit, configStates);
     }
   }, [incident, initialLaneCount]);
 
@@ -166,26 +171,6 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
     }
   };
 
-  const handleSaveOverride = () => {
-    const defaultLaneCount = nodeData.defaultLaneCount
-      || nodeData.defaultLaneConfiguration?.length
-      || tempLaneConfig.length
-      || 3;
-    const finalLanes = laneOverrideMode === 'all'
-      ? Array(defaultLaneCount).fill(allLanesState)
-      : tempLaneConfig.slice(0, defaultLaneCount);
-    setSpeedLimit(tempSpeedLimit);
-    setLaneConfiguration(finalLanes);
-    setDecisionType('MODIFIED');
-    setOverrideOpen(false);
-  };
-
-  const handleCancelOverride = () => {
-    setTempSpeedLimit(speedLimit);
-    setTempLaneConfig(laneConfiguration);
-    setOverrideOpen(false);
-  };
-
   const timeString = incident?.timestamp ? new Date(incident.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
   
   // Extract AI analysis data
@@ -233,7 +218,7 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         <AccidentDialogHeader incident={incident} timeString={timeString} />
 
         {/* Body - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-[20px] py-[16px] space-y-[16px] bg-[#fafafa]">
+        <div className="flex-1 overflow-y-auto px-[20px] py-[16px] space-y-[16px] bg-gray-50">
           
           {/* Top Row: Image + Override */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-[16px]">
@@ -242,19 +227,19 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
             </div>
 
             <OverridePanel
-              overrideOpen={overrideOpen}
-              setOverrideOpen={setOverrideOpen}
+              overrideOpen={override.overrideOpen}
+              setOverrideOpen={override.setOverrideOpen}
               defaultLaneCount={defaultLaneCount}
               laneNames={laneNames}
-              tempLaneConfig={tempLaneConfig}
-              setTempLaneConfig={setTempLaneConfig}
+              tempLaneConfig={override.tempLaneConfig}
+              setTempLaneConfig={override.setTempLaneConfig}
               laneConfigStates={laneConfigStates}
               statusConfig={statusConfig}
-              tempSpeedLimit={tempSpeedLimit}
-              setTempSpeedLimit={setTempSpeedLimit}
+              tempSpeedLimit={override.tempSpeedLimit}
+              setTempSpeedLimit={override.setTempSpeedLimit}
               defaultSpeedLimit={defaultSpeedLimit}
-              handleSaveOverride={handleSaveOverride}
-              handleCancelOverride={handleCancelOverride}
+              handleSaveOverride={override.handleSaveOverride}
+              handleCancelOverride={override.handleCancelOverride}
             />
           </div>
 
@@ -275,21 +260,21 @@ function AccidentDialog({ open, onClose, incident, onDecision }) {
         </div>
 
         {/* Footer */}
-        <Modal.Footer className="flex-shrink-0 border-t-2 border-[#e5e7eb] bg-white px-[20px] py-[16px] gap-[12px]">
+        <Modal.Footer className="flex-shrink-0 border-t-2 border-safe-border bg-white px-[20px] py-[16px] gap-[12px]">
           <Button 
             variant="secondary" 
             onClick={handleCancel}
-            className="flex items-center justify-center gap-[8px] px-[20px] py-[10px] rounded-[6px] font-bold text-[13px] border-[#e5e7eb] hover:bg-[#f9fafb]"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-bold text-[13px] border-safe-border hover:bg-gray-50"
           >
-            <FontAwesomeIcon icon="ban" style={{ width: '14px', height: '14px' }} />
+            <FontAwesomeIcon icon="ban" className="w-3.5 h-3.5" />
             Reject
           </Button>
           <Button 
             variant="primary" 
             onClick={handleConfirm}
-            className="flex items-center justify-center gap-[8px] px-[20px] py-[10px] rounded-[6px] font-bold text-[13px] bg-[#16a34a] hover:bg-[#15803d]"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-bold text-[13px] bg-green-600 hover:bg-green-700"
           >
-            <FontAwesomeIcon icon="check" style={{ width: '14px', height: '14px' }} />
+            <FontAwesomeIcon icon="check" className="w-3.5 h-3.5" />
             Confirm & Send
           </Button>
         </Modal.Footer>

@@ -13,7 +13,7 @@ const { z } = require('zod');
  * Heartbeat Schema
  * Validates heartbeat data from detection nodes
  */
-const heartbeatSchema = z.object({
+const heartbeatSchema = {
   body: z.object({
     type: z.literal('heartbeat'),
     nodeId: z.string().min(1, 'Node ID is required'),
@@ -53,13 +53,13 @@ const heartbeatSchema = z.object({
     speedLimit: z.number().int().min(0).optional(),
     streetName: z.string().optional(),
   }),
-});
+};
 
 /**
  * Node Registration Schema
  * For new nodes connecting to the central unit
  */
-const nodeRegistrationSchema = z.object({
+const nodeRegistrationSchema = {
   body: z.object({
     nodeId: z.string().min(1, 'Node ID is required'),
     location: z.object({
@@ -78,23 +78,23 @@ const nodeRegistrationSchema = z.object({
     firmwareVersion: z.string().optional(),
     modelVersion: z.string().optional(),
   }),
-});
+};
 
 /**
  * Node Delete Schema
  * Validates node id for delete requests
  */
-const deleteNodeSchema = z.object({
+const deleteNodeSchema = {
   params: z.object({
     nodeId: z.string().min(1, 'Node ID is required'),
   }),
-});
+};
 
 /**
  * Node Update/Edit Schema
  * For editing node properties like name, street name, IP address, location
  */
-const updateNodeSchema = z.object({
+const updateNodeSchema = {
   params: z.object({
     nodeId: z.string().min(1, 'Node ID is required'),
   }),
@@ -111,7 +111,7 @@ const updateNodeSchema = z.object({
     minObjectSize: z.number().int().min(1).optional(),
     speedLimit: z.number().int().min(0).optional(),
   }),
-});
+};
 
 module.exports = {
   heartbeatSchema,

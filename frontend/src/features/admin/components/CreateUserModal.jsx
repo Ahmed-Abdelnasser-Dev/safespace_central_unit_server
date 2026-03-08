@@ -133,13 +133,15 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="user@agency.safeg.gov"
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
                   className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                     errors.email ? 'border-safe-danger' : 'border-safe-border'
                   }`}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
+                <p id="email-error" className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
                   {errors.email}
                 </p>
@@ -157,12 +159,14 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                 onChange={(e) => handleInputChange('nationalId', e.target.value.replace(/\D/g, ''))}
                 placeholder="14-digit national ID"
                 maxLength={14}
+                aria-invalid={!!errors.nationalId}
+                aria-describedby={errors.nationalId ? 'nationalId-error' : undefined}
                 className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark placeholder-safe-text-gray/50 focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                   errors.nationalId ? 'border-safe-danger' : 'border-safe-border'
                 }`}
               />
               {errors.nationalId && (
-                <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
+                <p id="nationalId-error" className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
                   {errors.nationalId}
                 </p>
@@ -177,6 +181,8 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
               <select
                 value={formData.roleId}
                 onChange={(e) => handleInputChange('roleId', e.target.value)}
+                aria-invalid={!!errors.roleId}
+                aria-describedby={errors.roleId ? 'roleId-error' : undefined}
                 className={`w-full px-4 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors cursor-pointer ${
                   errors.roleId ? 'border-safe-danger' : 'border-safe-border'
                 }`}
@@ -188,7 +194,7 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                 <option value="4">Node Maintenance Crew</option>
               </select>
               {errors.roleId && (
-                <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
+                <p id="roleId-error" className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
                   {errors.roleId}
                 </p>
@@ -207,6 +213,8 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                     value={formData.password}
                     readOnly
                     placeholder="Click Generate to create secure password"
+                    aria-invalid={!!errors.password}
+                    aria-describedby={errors.password ? 'password-error' : undefined}
                     className={`w-full pl-4 pr-10 py-2.5 bg-safe-bg border rounded-lg text-safe-text-dark focus:outline-none focus:ring-2 focus:ring-safe-blue-btn/30 transition-colors ${
                       errors.password ? 'border-safe-danger' : 'border-safe-border'
                     }`}
@@ -230,7 +238,7 @@ function CreateUserModal({ isOpen, onClose, onSubmit }) {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
+                <p id="password-error" className="mt-1.5 text-xs text-safe-danger flex items-center gap-1">
                   <FontAwesomeIcon icon="exclamation-triangle" className="text-[10px]" />
                   {errors.password}
                 </p>

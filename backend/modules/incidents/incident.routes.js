@@ -12,6 +12,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AppError = require('../../utils/AppError');
+const { logger } = require('../../utils/logger');
 const incidentController = require('./incident.controller');
 const validate = require('../../middleware/validate');
 const protect = require('../../middleware/protect');
@@ -62,8 +63,7 @@ const fileFilter = (req, file, cb) => {
     'application/octet-stream' // Some systems send MP4 as this
   ];
   
-  // Log the detected MIME type for debugging
-  console.log(`File upload - Name: ${file.originalname}, MIME: ${file.mimetype}`);
+  logger.info(`File upload - Name: ${file.originalname}, MIME: ${file.mimetype}`);
   
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
