@@ -71,7 +71,7 @@ function App() {
   const { isAuthenticated } = useSelector((state) => state.auth);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ── Auth routes (no layout) ──────────────────────────── */}

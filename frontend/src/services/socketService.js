@@ -14,7 +14,7 @@ let socket = null;
 export function initSocket() {
   if (!socket) {
     socket = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
+      transports: ['polling'],
       reconnectionDelay: 1000,
       reconnection: true,
       reconnectionAttempts: 10,

@@ -10,7 +10,7 @@
 import React, { useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectNode, selectAllNodes, selectSelectedNodeId } from '../../nodesSlice';
-import Map from 'react-map-gl';
+import Map from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand } from '@fortawesome/free-solid-svg-icons';

@@ -1,12 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import PolygonOverlay from './PolygonOverlay.jsx';
 
 function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = [] }) {
   const [index, setIndex] = useState(0);
-  const [overlayRect, setOverlayRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
-  const containerRef = React.useRef(null);
-  const imageRef = React.useRef(null);
+  const containerRef = useRef(null);
+  const imageRef = useRef(null);
 
   useEffect(() => { setIndex(0); }, [mediaList]);
 
@@ -37,7 +35,6 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
       left = (container.width - width) / 2;
     }
 
-    setOverlayRect({ left, top, width, height });
   };
 
   useEffect(() => {
