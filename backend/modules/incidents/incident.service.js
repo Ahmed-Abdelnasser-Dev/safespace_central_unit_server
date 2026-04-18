@@ -23,6 +23,8 @@ const incidentDataMap = new Map();
 // Track recent notifications sent to Mobile App Server to avoid duplicate re-emits
 const recentMobileNotifications = new Map();
 const MOBILE_NOTIFICATION_TTL_MS = 15000; // 15 seconds
+const FAILED_MOBILE_NOTIFICATION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const failedMobileNotificationCleanupTimers = new Map();
 
 function _roundCoord(v) {
   return Math.round(Number(v) * 10000) / 10000;
@@ -40,6 +42,26 @@ function isRecentMobileNotification({ latitude, longitude, nodeId }) {
   if (Date.now() - ts <= MOBILE_NOTIFICATION_TTL_MS) return true;
   recentMobileNotifications.delete(key);
   return false;
+}
+
+function clearFailedMobileNotificationCleanup(incidentId) {
+  const existingTimer = failedMobileNotificationCleanupTimers.get(incidentId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    failedMobileNotificationCleanupTimers.delete(incidentId);
+  }
+}
+
+function scheduleFailedMobileNotificationCleanup(incidentId) {
+  clearFailedMobileNotificationCleanup(incidentId);
+
+  const timer = setTimeout(() => {
+    incidentDataMap.delete(incidentId);
+    failedMobileNotificationCleanupTimers.delete(incidentId);
+    logger.warn(`[MOBILE APP NOTIFY] Cleared stale incident context after retry window expired for ${incidentId}`);
+  }, FAILED_MOBILE_NOTIFICATION_TTL_MS);
+
+  failedMobileNotificationCleanupTimers.set(incidentId, timer);
 }
 
 /**
@@ -441,8 +463,11 @@ async function processAccidentDecision(decisionData) {
 
   // CONFIRMED logic
   logger.info(`Accident decision confirmed for ${incidentId}. Actions: ${actions.join(', ')}`);
-    const incident = incidentDataMap.get(incidentId);
-    if (incident) {
+  const incident = incidentDataMap.get(incidentId);
+  let notificationStatus = 'SKIPPED';
+  if (incident) {
+    let notificationSent = false;
+    try {
       logger.info(`[MOBILE APP NOTIFY] Triggering request to Mobile App Server for Node ${incident.nodeId} Lane ${incident.lanNumber} (incidentId: ${incidentId})`);
       await mobileAppNotificationService.notifyAccident({
         centralUnitAccidentId: incidentId,
@@ -464,10 +489,24 @@ async function processAccidentDecision(decisionData) {
         logger.error('Failed to add recent mobile notification marker', e.message || e);
       }
       logger.info(`Mobile App Server notified for Node ${incident.nodeId} Lane ${incident.lanNumber} after admin confirmation.`);
+      notificationSent = true;
+      notificationStatus = 'SENT';
+    } catch (notificationError) {
+      notificationStatus = 'FAILED';
+      logger.error(`[MOBILE APP NOTIFY] Failed to notify Mobile App Server for incident ${incidentId}`, {
+        error: notificationError.message,
+      });
+    }
+
+    if (notificationSent) {
+      clearFailedMobileNotificationCleanup(incidentId);
       incidentDataMap.delete(incidentId);
     } else {
-      logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
+      scheduleFailedMobileNotificationCleanup(incidentId);
     }
+  } else {
+    logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
+  }
 
   // ========================================
   // EMIT DECISION CONFIRMATION TO DASHBOARD
@@ -490,5 +529,6 @@ async function processAccidentDecision(decisionData) {
     status,
     actions,
     message: 'Decision applied successfully',
+    notificationStatus,
   };
 }

@@ -11,6 +11,9 @@ class MobileAppNotificationService {
    * @returns {Promise<Object>} - Response from Mobile App Server
    */
   async notifyAccident({ centralUnitAccidentId, occurredAt, location }) {
+    if (!this.serverUrl || typeof this.serverUrl !== 'string') {
+      throw new Error('MOBILE_APP_SERVER_URL is not configured');
+    }
     if (!centralUnitAccidentId || typeof centralUnitAccidentId !== 'string') {
       throw new Error('centralUnitAccidentId is required');
     }
