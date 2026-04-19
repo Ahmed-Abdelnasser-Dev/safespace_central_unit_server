@@ -14,10 +14,17 @@
 // All users must change password on first login.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
+require('dotenv').config();
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
 
 async function main() {
   console.log('\n🌱 Starting database seed...\n');
