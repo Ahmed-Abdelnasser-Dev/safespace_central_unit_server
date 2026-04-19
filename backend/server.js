@@ -3,7 +3,7 @@
  * Restored file: handles port availability and graceful shutdown.
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const env = require('./config/env');
 const net = require('net');
 const http = require('http');

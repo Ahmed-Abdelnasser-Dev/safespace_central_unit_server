@@ -13,7 +13,7 @@ const aiService = require('../ai/ai.service');
 const decisionService = require('../decision/decision.service');
 const { prisma } = require('../../utils/prisma');
 const dotenv = require('dotenv');
-dotenv.config();
+dotenv.config({ path: require('path').resolve(__dirname, '../../../.env') });
 const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
 
 // In-memory store for pending accident decisions
