@@ -9,6 +9,7 @@
     "test:accident": "node tests/accident-detection.script.js",
     "test:heartbeat": "node tests/heartbeat-video.script.js",
     "test:blocked-lanes": "bash tests/blocked-lanes.sh",
+    "test:geospatial": "node tests/geospatial-normalization.script.js",
     "db:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
     "db:reset": "npx prisma db push --force-reset && node prisma/seed.js",

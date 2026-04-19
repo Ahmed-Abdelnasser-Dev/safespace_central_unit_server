@@ -37,9 +37,35 @@ const accidentDetectedSchema = {
       required_error: 'Accident polygon is required for decision analysis',
     }).transform((val, ctx) => {
       try {
-        const parsed = JSON.parse(val);
+        // Validate input is a non-empty string
+        if (typeof val !== 'string' || val.trim().length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must be a non-empty JSON string',
+          });
+          return z.NEVER;
+        }
+        
+        let parsed;
+        try {
+          parsed = JSON.parse(val);
+        } catch (jsonError) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `accidentPolygon must be valid JSON. Parse error: ${jsonError.message}. Input: ${val.substring(0, 100)}${val.length > 100 ? '...' : ''}`,
+          });
+          return z.NEVER;
+        }
         
         // Validate structure
+        if (!parsed || typeof parsed !== 'object') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must be a JSON object',
+          });
+          return z.NEVER;
+        }
+        
         if (!parsed.points || !Array.isArray(parsed.points)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -51,37 +77,58 @@ const accidentDetectedSchema = {
         if (parsed.points.length < 3) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'accidentPolygon must have at least 3 points',
+            message: `accidentPolygon must have at least 3 points (received ${parsed.points.length})`,
           });
           return z.NEVER;
         }
         
-        // Validate each point has x and y coordinates
-        const invalidPoint = parsed.points.find(p => 
-          typeof p.x !== 'number' || typeof p.y !== 'number'
-        );
+        // Validate each point has finite x and y coordinates
+        for (let i = 0; i < parsed.points.length; i++) {
+          const p = parsed.points[i];
+          
+          if (!p || typeof p !== 'object') {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Point ${i} must be an object with x and y coordinates`,
+            });
+            return z.NEVER;
+          }
+          
+          if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Point ${i} must have finite numeric x and y coordinates (received: x=${p.x}, y=${p.y})`,
+            });
+            return z.NEVER;
+          }
+        }
         
-        if (invalidPoint) {
+        // Validate baseWidth is a positive number
+        if (!Number.isFinite(parsed.baseWidth) || parsed.baseWidth <= 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'All points must have numeric x and y coordinates',
+            message: `accidentPolygon must have a valid positive baseWidth (received: ${parsed.baseWidth})`,
           });
           return z.NEVER;
         }
         
-        // Validate baseWidth and baseHeight
-        if (typeof parsed.baseWidth !== 'number' || parsed.baseWidth <= 0) {
+        // Validate baseHeight is a positive number
+        if (!Number.isFinite(parsed.baseHeight) || parsed.baseHeight <= 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'accidentPolygon must have a valid baseWidth',
+            message: `accidentPolygon must have a valid positive baseHeight (received: ${parsed.baseHeight})`,
           });
           return z.NEVER;
         }
         
-        if (typeof parsed.baseHeight !== 'number' || parsed.baseHeight <= 0) {
+        // Validate coordinate ranges are reasonable (within ±2x of base dimensions)
+        const maxX = Math.max(...parsed.points.map(p => Math.abs(p.x)));
+        const maxY = Math.max(...parsed.points.map(p => Math.abs(p.y)));
+        
+        if (maxX > parsed.baseWidth * 2 || maxY > parsed.baseHeight * 2) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'accidentPolygon must have a valid baseHeight',
+            message: `Polygon coordinates exceed expected range. Max X: ${maxX} (base: ${parsed.baseWidth}), Max Y: ${maxY} (base: ${parsed.baseHeight})`,
           });
           return z.NEVER;
         }
@@ -90,7 +137,7 @@ const accidentDetectedSchema = {
       } catch (error) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `accidentPolygon must be valid JSON. Received: ${val.substring(0, 100)}... Error: ${error.message}`,
+          message: `Unexpected error validating accidentPolygon: ${error.message}`,
         });
         return z.NEVER;
       }
