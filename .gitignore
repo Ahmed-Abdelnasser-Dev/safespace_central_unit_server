@@ -32,6 +32,14 @@ out/
 *.sublime-workspace
 
 # =========================
+# Ai Skills files
+# =========================
+.claude/
+.github/
+.agent/
+.agents/
+
+# =========================
 # System files
 # =========================
 .DS_Store
