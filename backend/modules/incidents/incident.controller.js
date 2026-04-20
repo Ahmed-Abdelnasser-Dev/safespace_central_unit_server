@@ -125,7 +125,7 @@ module.exports = {
 
     // Generate unique incident ID
     const incidentId = `mobile_incident_${Date.now()}`;
-    const nodeId = 999; // Default external source ID
+    const nodeId = "safe-space-node-001"; // Default external source ID
 
     // Build media list from uploaded files (type + URL)
     const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi', 'mkv'];
@@ -193,7 +193,7 @@ module.exports = {
     }
 
     const incidentIdLocal = `mobile_${accidentId || Date.now()}`;
-    const nodeId = 999; // external source
+    const nodeId = "safe-space-node-001"; // external source
 
     // If media contains external URLs, try to download and store locally so the dashboard can serve them reliably
     const fs = require('fs');
@@ -261,7 +261,35 @@ module.exports = {
       locationName: description,
       mediaList,
       timestamp: Date.now(),
-      severity: severity || 'unknown',
+      severity: severity || 'HIGH',
+      node: {
+        name: `Mobile Report - ${nodeId}`,
+        defaultSpeedLimit: 40,
+        defaultLaneCount: 3,
+        defaultLaneConfiguration: [
+          { lane: 1, name: 'Lane 1', state: 'open' },
+          { lane: 2, name: 'Lane 2', state: 'open' },
+          { lane: 3, name: 'Lane 3', state: 'open' }
+        ]
+      },
+      ai: {
+        severity: 3,
+        confidence: 0.90,
+        accidentType: 'Mobile Check-in',
+        vehicleCount: 1,
+        injuryRisk: 'Unknown',
+        recommendations: [],
+        mode: 'MOBILE'
+      },
+      decision: {
+        blockedLanes: [],
+        laneConfiguration: 'open,open,open',
+        speedLimit: 40,
+        originalSpeedLimit: 80,
+        speedReduction: 40,
+        actions: ['MONITOR_SITUATION'],
+        influencedByAI: false
+      }
     };
 
     // Register into incident store so admin decisions can reference it

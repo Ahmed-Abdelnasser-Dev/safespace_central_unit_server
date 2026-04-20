@@ -98,6 +98,10 @@ model Incident {
   adminDecision         String?  // null until admin responds, then "reduce-speed", "normal-operation", etc.
   adminDecisionTime     DateTime?
   
+  // Status and Routing
+  status                String   @default("pending") // pending, assigned, resolved
+  assignedToUserId      String?
+  
   // Timestamps
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

@@ -13,7 +13,11 @@ let socket = null;
  */
 export function initSocket() {
   if (!socket) {
+    const accessToken = sessionStorage.getItem('accessToken');
     socket = io(SOCKET_URL, {
+      auth: {
+        token: accessToken
+      },
       transports: ['polling'],
       reconnectionDelay: 1000,
       reconnection: true,
@@ -35,6 +39,24 @@ export function getSocket() {
     return initSocket();
   }
   return socket;
+}
+
+/**
+ * Listen for accident assignments
+ * @param {Function} callback - handler for assigned accident data
+ */
+export function onIncidentAssigned(callback) {
+  const s = getSocket();
+  s.on('incident-assigned', callback);
+}
+
+/**
+ * Remove accident assignment listener
+ * @param {Function} callback
+ */
+export function offIncidentAssigned(callback) {
+  const s = getSocket();
+  s.off('incident-assigned', callback);
 }
 
 /**

@@ -5,7 +5,7 @@ import MapView from '../components/MapView.jsx';
 import AccidentDialog from '@/features/incidents/components/AccidentDialog.jsx';
 import NodesList from '../components/NodesList.jsx';
 import KPICards from '../components/KPICards.jsx';
-import { initSocket, onAccidentDetected, offAccidentDetected, getSocket } from '@/services/socketService.js';
+import { initSocket, getSocket, onIncidentAssigned, offIncidentAssigned, onAccidentDetected, offAccidentDetected } from '@/services/socketService.js';
 
 function MapOverviewPage() {
   const [showAccident, setShowAccident] = useState(false);
@@ -16,10 +16,11 @@ function MapOverviewPage() {
     initSocket();
 
     const handleAccident = (incidentData) => {
-      setCurrentIncident((prev) => {
-        if (prev && incidentData.incidentId === prev.incidentId) return prev;
-        return incidentData;
-      });
+      // Backend guarantees we won't get another incident while busy, 
+      // but just incase, defensive programming here:
+      if (showAccident || currentIncident) return; 
+
+      setCurrentIncident(incidentData);
       setShowAccident(true);
     };
 
@@ -29,11 +30,13 @@ function MapOverviewPage() {
       return () => clearTimeout(timer);
     };
 
+    onIncidentAssigned(handleAccident);
     onAccidentDetected(handleAccident);
     const socket = getSocket();
     socket.on('decision-confirmed', handleDecisionConfirmed);
 
     return () => {
+      offIncidentAssigned(handleAccident);
       offAccidentDetected(handleAccident);
       socket.off('decision-confirmed', handleDecisionConfirmed);
     };

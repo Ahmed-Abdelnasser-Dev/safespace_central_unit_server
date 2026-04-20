@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = [] }) {
   const [index, setIndex] = useState(0);
@@ -10,6 +11,10 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
 
   const hasMedia = mediaList && mediaList.length > 0;
   const current = hasMedia ? mediaList[index] : null;
+
+  const currentUrl = current?.url 
+    ? (current.url.startsWith('http') ? current.url : current.url) 
+    : '';
 
   const next = () => setIndex((i) => (i + 1) % mediaList.length);
   const prev = () => setIndex((i) => (i - 1 + mediaList.length) % mediaList.length);
@@ -49,11 +54,11 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
         <>
           <div className="relative w-full h-full">
             {current.type === 'video' ? (
-              <video src={current.url} className="object-cover w-full h-full" controls autoPlay muted />
+              <video src={currentUrl} className="object-cover w-full h-full" controls autoPlay muted />
             ) : (
               <>
                 <img
-                  src={current.url}
+                  src={currentUrl}
                   alt={`Accident media ${index + 1}`}
                   className="object-contain w-full h-full bg-black/10"
                   ref={imageRef}

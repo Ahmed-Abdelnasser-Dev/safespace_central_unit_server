@@ -20,6 +20,9 @@ const AppError = require("./utils/AppError");
 
 const app = express();
 
+// Trust proxy for express-rate-limit if running behind a proxy like ngrok
+app.set('trust proxy', 1);
+
 // ============================================
 // SECURITY MIDDLEWARE
 // ============================================
