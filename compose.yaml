@@ -36,7 +36,7 @@ services:
         condition: service_healthy
     volumes:
       - backend_uploads:/app/backend/uploads
-    command: ["sh", "-c", "if [ -f backend/prisma/schema.prisma ]; then cd backend && npx prisma migrate deploy --schema=prisma/schema.prisma && node server.js; elif [ -f prisma/schema.prisma ]; then npx prisma migrate deploy --schema=prisma/schema.prisma && node backend/server.js; else echo 'Error: Prisma schema not found at backend/prisma/schema.prisma or prisma/schema.prisma' >&2; exit 1; fi"]
+    command: ["sh", "-c", "if [ -f backend/prisma/schema.prisma ] && [ -f backend/server.js ]; then cd backend && npx prisma migrate deploy --schema=prisma/schema.prisma && node server.js; elif [ -f prisma/schema.prisma ] && [ -f server.js ]; then npx prisma migrate deploy --schema=prisma/schema.prisma && node server.js; else echo 'Error: Expected either /app/backend/{server.js,prisma/schema.prisma} or /app/{server.js,prisma/schema.prisma}' >&2; ls -la; ls -la backend 2>/dev/null || true; exit 1; fi"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/health >/dev/null || exit 1"]
       interval: 20s
