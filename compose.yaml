@@ -36,7 +36,7 @@ services:
         condition: service_healthy
     volumes:
       - backend_uploads:/app/backend/uploads
-    command: ["sh", "-c", "cd backend && npx prisma migrate deploy && node server.js"]
+    command: ["sh", "-c", "cd backend && npx prisma migrate deploy --schema=prisma/schema.prisma && node server.js"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/health >/dev/null || exit 1"]
       interval: 20s
