@@ -1,8 +1,18 @@
 const axios = require('axios');
 
+function normalizeServerUrl(url) {
+  if (typeof url !== 'string') return url;
+
+  return url
+    .trim()
+    .replace(/^https:\/(?!\/)/i, 'https://')
+    .replace(/^http:\/(?!\/)/i, 'http://')
+    .replace(/\/+$/, '');
+}
+
 class MobileAppNotificationService {
   constructor(serverUrl) {
-    this.serverUrl = serverUrl;
+    this.serverUrl = normalizeServerUrl(serverUrl);
   }
 
   /**
@@ -11,6 +21,9 @@ class MobileAppNotificationService {
    * @returns {Promise<Object>} - Response from Mobile App Server
    */
   async notifyAccident({ centralUnitAccidentId, occurredAt, location }) {
+    if (!this.serverUrl || typeof this.serverUrl !== 'string') {
+      throw new Error('MOBILE_APP_SERVER_URL is not configured');
+    }
     if (!centralUnitAccidentId || typeof centralUnitAccidentId !== 'string') {
       throw new Error('centralUnitAccidentId is required');
     }
@@ -38,11 +51,21 @@ class MobileAppNotificationService {
       const response = await axios.post(
         `${this.serverUrl}/central-unit/receive-accident-from-central-unit`,
         body,
-        { headers: { 'Content-Type': 'application/json' } }
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000,
+        }
       );
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to notify Mobile App Server');
+      const rawMessage = error.response?.data?.message || error.message || 'Failed to notify Mobile App Server';
+      const isProtocolMismatch = /EPROTO|tls_get_more_records|packet length too long|SSL routines/i.test(rawMessage);
+      const message = isProtocolMismatch
+        ? `Failed to notify Mobile App Server: protocol mismatch for ${this.serverUrl}. Use http:// for local non-TLS servers.`
+        : rawMessage;
+
+      console.error('[PushMobileAppError]:', error.response?.data || error.message);
+      throw new Error(message);
     }
   }
 }

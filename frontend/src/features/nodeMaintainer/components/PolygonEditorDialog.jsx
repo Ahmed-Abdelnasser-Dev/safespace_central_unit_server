@@ -8,16 +8,34 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { addLanePolygon, updateLanePolygon } from '../nodesSlice';
+import { API_BASE_URL } from '@/lib/apiConfig';
+import { updateNodePolygons } from '../nodesSlice';
+import { useNodeVideoFeed } from '@/hooks/useNodeVideoFeed';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import Button from '../../../components/ui/Button.jsx';
+import Button from '@/components/ui/Button.jsx';
+import { showError } from '@/utils/toast';
+import PolygonToolbar from './PolygonToolbar.jsx';
+import usePolygonEditor from './usePolygonEditor.js';
 
 function PolygonEditorDialog({ node, polygon, onClose }) {
   const dispatch = useDispatch();
   const canvasRef = useRef();
-  const [points, setPoints] = useState(polygon?.points || []);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [polygonName, setPolygonName] = useState(polygon?.name || `Lane ${node.lanePolygons.length + 1}`);
+  const { currentFrame, lastSnapshot } = useNodeVideoFeed();
+
+  const normalizePoints = (pts) => (pts || []).map((p) => {
+    if (typeof p?.x === 'number' && typeof p?.y === 'number') return p;
+    if (Array.isArray(p) && p.length >= 2) return { x: p[0], y: p[1] };
+    return null;
+  }).filter(Boolean);
+
+  const [polygonName, setPolygonName] = useState(polygon?.name || 'Lane Polygon');
+
+  const {
+    points, toolMode, setToolMode, selectedPointIndex, setSelectedPointIndex,
+    undoStack, redoStack, drawPolygon,
+    handleCanvasClick, handleMouseDown, handleMouseMove, handleMouseUp,
+    handleUndo, handleRedo, handleClear, handleDeletePoint,
+  } = usePolygonEditor(normalizePoints(polygon?.points));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -25,117 +43,58 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
 
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
-    // Use a placeholder image with a highway scene
-    img.src = 'https://images.unsplash.com/photo-1489496900549-f21edf41dd20?w=800&h=450&fit=crop';
-    
+    const baseUrl = API_BASE_URL;
+
+    if (currentFrame?.frameData) {
+      img.src = `data:image/jpeg;base64,${currentFrame.frameData}`;
+    } else if (lastSnapshot?.snapshotPath) {
+      img.src = `${baseUrl}${lastSnapshot.snapshotPath}`;
+    } else {
+      img.src = 'https://images.unsplash.com/photo-1489496900549-f21edf41dd20?w=640&h=640&fit=crop';
+    }
+
     img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      drawPolygon(ctx, img);
+      canvas.width = 640;
+      canvas.height = 640;
+      ctx.drawImage(img, 0, 0, 640, 640);
+      drawPolygon(ctx);
     };
 
     img.onerror = () => {
-      // Fallback: draw a solid color
-      canvas.width = 800;
-      canvas.height = 450;
+      canvas.width = 640;
+      canvas.height = 640;
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, 640, 640);
       ctx.fillStyle = '#fff';
       ctx.font = '16px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('Click to draw polygon points', canvas.width / 2, canvas.height / 2);
-      drawPolygon(ctx, { width: canvas.width, height: canvas.height });
+      ctx.fillText('Click to draw polygon points', 320, 320);
+      drawPolygon(ctx);
     };
-  }, [points]);
-
-  const drawPolygon = (ctx, img) => {
-    ctx.drawImage(img, 0, 0);
-
-    if (points.length === 0) return;
-
-    // Scale points to canvas
-    const scaledPoints = points.map(p => ({
-      x: (p[1] + 74) * 100,
-      y: (p[0] - 40) * 100,
-    }));
-
-    // Draw lines between points
-    ctx.strokeStyle = 'rgb(59, 130, 246)';
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    scaledPoints.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    if (scaledPoints.length > 2) {
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.stroke();
-
-    // Draw points
-    ctx.fillStyle = 'rgb(59, 130, 246)';
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
-    scaledPoints.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    });
-  };
-
-  const handleCanvasClick = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Convert canvas coordinates back to lat/long (simplified)
-    const lat = (y / 100) + 40;
-    const long = (x / 100) - 74;
-
-    setPoints([...points, [lat, long]]);
-  };
-
-  const handleUndo = () => {
-    setPoints(points.slice(0, -1));
-  };
-
-  const handleClear = () => {
-    setPoints([]);
-  };
+  }, [points, currentFrame, lastSnapshot, drawPolygon]);
 
   const handleSave = () => {
     if (points.length < 3) {
-      alert('Polygon must have at least 3 points');
+      showError('Polygon must have at least 3 points');
       return;
     }
 
     const newPolygon = {
       id: polygon?.id || `poly-${Date.now()}`,
       name: polygonName,
+      laneNumber: polygon?.laneNumber,
       type: 'lane',
       points,
+      baseWidth: 640,
+      baseHeight: 640,
+      isEmpty: false,
     };
 
-    if (polygon) {
-      dispatch(updateLanePolygon({
-        nodeId: node.id,
-        polygonId: polygon.id,
-        polygon: newPolygon,
-      }));
-    } else {
-      dispatch(addLanePolygon({
-        nodeId: node.id,
-        polygon: newPolygon,
-      }));
-    }
+    const updatedPolygons = polygon?.id
+      ? node.lanePolygons.map((p) => (p.id === polygon.id ? newPolygon : p))
+      : [...(node.lanePolygons || []), newPolygon];
 
+    dispatch(updateNodePolygons({ nodeId: node.id, lanePolygons: updatedPolygons }));
     onClose();
   };
 
@@ -147,21 +106,15 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
           <h2 className="text-lg font-semibold text-safe-text-dark">
             Polygon Editor - {node.id}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-safe-bg rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-safe-bg rounded-lg transition-colors">
             <FontAwesomeIcon icon="xmark" className="text-lg text-safe-text-gray" />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Polygon Name Input */}
           <div>
-            <label className="text-sm font-medium text-safe-text-dark mb-1 block">
-              Polygon Name
-            </label>
+            <label className="text-sm font-medium text-safe-text-dark mb-1 block">Polygon Name</label>
             <input
               type="text"
               value={polygonName}
@@ -170,26 +123,52 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
             />
           </div>
 
-          {/* Canvas */}
-          <div>
-            <div className="mb-2 flex items-center gap-2">
-              <FontAwesomeIcon icon="pen" className="text-safe-blue text-sm" />
-              <label className="text-sm font-medium text-safe-text-dark">
-                Click to draw polygon points ({points.length})
-              </label>
-            </div>
-            <canvas
-              ref={canvasRef}
-              onClick={handleCanvasClick}
-              className="w-full border-2 border-dashed border-safe-border rounded-lg cursor-crosshair bg-black"
+          <div className="flex flex-col lg:flex-row gap-4">
+            <PolygonToolbar
+              toolMode={toolMode}
+              setToolMode={setToolMode}
+              selectedPointIndex={selectedPointIndex}
+              setSelectedPointIndex={setSelectedPointIndex}
+              undoCount={undoStack.length}
+              redoCount={redoStack.length}
+              pointsCount={points.length}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onClear={handleClear}
+              onDeletePoint={handleDeletePoint}
             />
+
+            <div className="flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <FontAwesomeIcon icon={toolMode === 'edit' ? 'location-dot' : 'pen'} className="text-safe-blue text-sm" />
+                <label className="text-sm font-medium text-safe-text-dark">
+                  {toolMode === 'edit' ? 'Drag points to move them' : `Click to draw polygon points (${points.length})`}
+                </label>
+              </div>
+              <div
+                className="relative w-full max-w-[640px] mx-auto border-2 border-dashed border-safe-border rounded-lg bg-black"
+                style={{ aspectRatio: '1 / 1', minHeight: '320px', maxHeight: '640px' }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  width={640}
+                  height={640}
+                  onClick={handleCanvasClick}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  className={`absolute inset-0 w-full h-full rounded-lg ${toolMode === 'edit' ? 'cursor-move' : 'cursor-crosshair'}`}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Instructions */}
           <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
             <p className="font-medium mb-1">How to draw:</p>
             <ul className="text-xs space-y-1 list-disc list-inside">
               <li>Click on the image to add polygon points</li>
+              <li>Switch to Move Points to reposition points</li>
               <li>Minimum 3 points required to create a polygon</li>
               <li>Use Undo to remove the last point</li>
               <li>Use Clear to start over</li>
@@ -198,46 +177,12 @@ function PolygonEditorDialog({ node, polygon, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 p-4 border-t border-safe-border bg-safe-bg">
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleUndo}
-              disabled={points.length === 0}
-            >
-              <FontAwesomeIcon icon="rotate-left" className="mr-1" />
-              Undo
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClear}
-              disabled={points.length === 0}
-            >
-              <FontAwesomeIcon icon="trash" className="mr-1" />
-              Clear
-            </Button>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-              disabled={points.length < 3}
-            >
-              <FontAwesomeIcon icon="floppy-disk" className="mr-1" />
-              Save Polygon
-            </Button>
-          </div>
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-safe-border bg-safe-bg">
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={points.length < 3}>
+            <FontAwesomeIcon icon="floppy-disk" className="mr-1" />
+            Save Polygon
+          </Button>
         </div>
       </div>
     </div>

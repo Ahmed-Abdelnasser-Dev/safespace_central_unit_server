@@ -1,0 +1,304 @@
+// ----------------------------------------------------------
+// Safe Space - Prisma Schema
+// ----------------------------------------------------------
+
+//Open the visual browser to verify RUN "npm run db:studio"
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Node {
+  id              String   @id @default(uuid())
+  nodeId          String   @unique
+  name            String
+  streetName      String   @default("Unknown Street")
+  status          String   @default("offline")
+  
+  // Location & Network
+  location        Json
+  latitude        Float    @default(0.0)
+  longitude       Float    @default(0.0)
+  ipAddress       String   @default("0.0.0.0")
+  videoFeedUrl    String?
+  
+  // Hardware & Configuration
+  nodeSpecs       Json
+  roadRules       Json
+  lanePolygons    Json     @default("[]")
+  lanes           Json     @default("[]")
+  laneStatus      String   @default("unknown")
+  
+  // Default Road Configuration (editable from Node Maintainer)
+  defaultLaneCount Int     @default(4)
+  speedLimit       Int     @default(80)
+  
+  // Camera Configuration (editable from Node Maintainer)
+  frameRate       Int      @default(30)
+  resolution      String   @default("1920x1080")
+  sensitivity     Float    @default(0.5)
+  minObjectSize   Int      @default(10)
+  bandwidth       Float    @default(0.0)
+  
+  // Telemetry & Health
+  health          Json
+  cpu             Float    @default(0.0)
+  temperature     Float    @default(0.0)
+  memory          Float    @default(0.0)
+  network         Float    @default(0.0)
+  storage         Float    @default(0.0)
+  
+  // Firmware & Versioning
+  uptimeSec       Int      @default(0)
+  firmwareVersion String   @default("unknown")
+  modelVersion    String   @default("unknown")
+  
+  // Timestamps
+  lastHeartbeat   DateTime?
+  lastUpdate      DateTime @default(now()) @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  incidents       Incident[]
+}
+
+model Incident {
+  id                    String   @id @default(uuid())
+  incidentId            String   @unique
+  
+  // Node Relationship
+  nodeId                String
+  node                  Node     @relation(fields: [nodeId], references: [nodeId])
+  
+  // Location Data
+  location              Json     // { latitude, longitude }
+  accidentPolygon       Json     // { points: [{x, y}], baseWidth, baseHeight }
+  
+  // Media Evidence
+  mediaUrls             Json     // Array of media file URLs
+  
+  // AI Analysis Results
+  severityLevel         Int      // 1-5 severity scale
+  
+  // Lane Analysis
+  blockedLanes          Json     // Array of blocked lane objects [{id, name}]
+  laneConfiguration     String   // e.g., "blocked,right,open,open"
+  
+  // Speed Control
+  originalSpeedLimit    Int
+  adjustedSpeedLimit    Int
+  
+  // Admin Decision
+  adminDecision         String?  // null until admin responds, then "reduce-speed", "normal-operation", etc.
+  adminDecisionTime     DateTime?
+  
+  // Status and Routing
+  status                String   @default("pending") // pending, assigned, resolved
+  assignedToUserId      String?
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([nodeId])
+  }
+
+  enum RoleName {
+    admin
+    emergency_dispatcher
+    road_observer
+    node_maintenance_crew
+  }
+
+enum PermissionAction {
+  read
+  create
+  update
+  delete
+  manage
+}
+
+enum MachineType {
+  roadside_node
+  backend_service
+  mobile_unit
+}
+
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        RoleName @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users             User[]
+  rolePermissions   RolePermission[]
+  machineIdentities MachineIdentity[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  resource    String
+  action      PermissionAction
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           Int      @id @default(autoincrement())
+  roleId       Int      @map("role_id")
+  permissionId Int      @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id String @id @default(uuid())
+
+  // Admin fills these at creation
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  roleId       Int     @map("role_id")
+  nationalId   String  @unique @map("national_id")
+  employeeId   String  @unique @map("employee_id")
+
+  // Password management
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+
+  // Account status
+  isActive        Boolean   @default(true) @map("is_active")
+  isEmailVerified Boolean   @default(false) @map("is_email_verified")
+  accountLocked   Boolean   @default(false) @map("account_locked")
+  lockedAt        DateTime? @map("locked_at")
+  lockedReason    String?   @map("locked_reason")
+
+  // Login tracking
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lastLoginAt         DateTime? @map("last_login_at")
+  lastFailedLoginAt   DateTime? @map("last_failed_login_at")
+
+  // MFA
+  mfaEnabled     Boolean  @default(false) @map("mfa_enabled")
+  mfaSecret      String?  @map("mfa_secret")
+  mfaBackupCodes String[] @map("mfa_backup_codes")
+
+  // Profile (user fills after first login)
+  username        String?   @unique
+  fullName        String?   @map("full_name")
+  phone           String?
+  birthdate       DateTime?
+  address         String?
+  gender          Gender?
+  department      String?
+  officeLocation  String?   @map("office_location")
+  profilePhotoUrl String?   @map("profile_photo_url")
+
+  // Metadata
+  createdByUserId String?   @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  role            Role              @relation(fields: [roleId], references: [id])
+  createdBy       User?             @relation("UserCreatedBy", fields: [createdByUserId], references: [id])
+  createdUsers    User[]            @relation("UserCreatedBy")
+  passwordHistory PasswordHistory[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model PasswordHistory {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_history")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  isRevoked Boolean   @default(false) @map("is_revoked")
+  revokedAt DateTime? @map("revoked_at")
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model MachineIdentity {
+  id          String      @id @default(uuid())
+  machineType MachineType @map("machine_type")
+  machineId   String      @unique @map("machine_id")
+  apiKeyHash  String      @map("api_key_hash")
+  roleId      Int         @map("role_id")
+  isActive    Boolean     @default(true) @map("is_active")
+  description String?
+  lastSeenAt  DateTime?   @map("last_seen_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  role      Role       @relation(fields: [roleId], references: [id])
+  auditLogs AuditLog[]
+
+  @@map("machine_identities")
+}
+
+model AuditLog {
+  id                BigInt  @id @default(autoincrement())
+  userId            String? @map("user_id")
+  machineIdentityId String? @map("machine_identity_id")
+  role              String?
+  eventType         String  @map("event_type")
+  action            String
+  resource          String?
+  resourceId        String? @map("resource_id")
+  details           Json?
+  success           Boolean
+  failureReason     String? @map("failure_reason")
+  ipAddress         String? @map("ip_address")
+  userAgent         String? @map("user_agent")
+  timestamp         DateTime @default(now())
+
+  user            User?            @relation(fields: [userId], references: [id])
+  machineIdentity MachineIdentity? @relation(fields: [machineIdentityId], references: [id])
+
+  @@map("audit_logs")
+}

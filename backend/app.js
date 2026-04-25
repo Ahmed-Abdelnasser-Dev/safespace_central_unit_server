@@ -11,23 +11,29 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
+const env = require('./config/env');
 const { logger } = require("./utils/logger");
 const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
-const authRoutes = require('./modules/auth/auth.routes');
 
 
 const app = express();
 
+// Trust proxy for express-rate-limit if running behind a proxy like ngrok
+app.set('trust proxy', 1);
+
 // ============================================
 // SECURITY MIDDLEWARE
 // ============================================
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow frontend to load /uploads images
+}));
 
 // CORS Configuration for LAN access
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:4000";
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
+const FRONTEND_URL = env.FRONTEND_URL;
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
+  ? env.ALLOWED_ORIGINS.split(",")
   : [FRONTEND_URL];
 
 app.use(
@@ -165,15 +171,46 @@ app.get("/api/test-frontend", (req, res) => {
   });
 });
 
+
+// ============================================
+// API RATE LIMITING
+// ============================================
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health' || req.path === '/api/health',
+});
+
+app.use('/api', limiter);
+
+
 // ============================================
 // API ROUTES
 // ============================================
-// Mount incident routes
-app.use("/api", require("./modules/incidents/incident.routes"));
+// Mount incident routes under domain prefix (preferred)
+app.use('/api/incidents', require('./modules/incidents/incident.routes'));
+
+// Backward compatibility for legacy clients using /api/* incident endpoints
+app.use('/api', require('./modules/incidents/incident.routes'));
+
+// Mount node routes
+app.use("/api/nodes", require("./modules/nodes/node.routes"));
+
+// Mount AI module routes (for testing/debugging)
+app.use("/api/ai", require("./modules/ai/ai.routes"));
+
+// Mount Decision module routes (for testing/debugging)
+app.use('/api/decisions', require('./modules/decision/decision.routes'));
+
+// Backward compatibility for legacy /api/decision path
+app.use('/api/decision', require('./modules/decision/decision.routes'));
 
 // Mount auth routes
-// app.use('/api/auth', require('./modules/auth/auth.routes'));
-
+app.use('/api/auth',          require('./modules/auth/auth.routes'));
+app.use('/api/users',         require('./modules/users/user.routes'));
+app.use('/api/activity-logs', require('./modules/activityLogs/activityLog.routes'));
 
 
 

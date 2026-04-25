@@ -1,12 +1,4 @@
 /**
- * Emit admin accident response to backend (to node)
- * @param {object} response - The response object to send
- */
-export function emitAdminAccidentResponse(response) {
-  const s = getSocket();
-  s.emit('admin_accident_response', response);
-}
-/**
  * Socket.IO Client Service
  * Manages real-time connection to backend for accident notifications
  */
@@ -21,20 +13,19 @@ let socket = null;
  */
 export function initSocket() {
   if (!socket) {
+    const accessToken = sessionStorage.getItem('accessToken');
     socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ Connected to Safe Space Central Unit');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('❌ Disconnected from Central Unit');
+      auth: {
+        token: accessToken
+      },
+      transports: ['polling'],
+      reconnectionDelay: 1000,
+      reconnection: true,
+      reconnectionAttempts: 10,
     });
 
     socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
+      console.error('🔴 Socket connection error:', err.message, err);
     });
   }
   return socket;
@@ -48,6 +39,24 @@ export function getSocket() {
     return initSocket();
   }
   return socket;
+}
+
+/**
+ * Listen for accident assignments
+ * @param {Function} callback - handler for assigned accident data
+ */
+export function onIncidentAssigned(callback) {
+  const s = getSocket();
+  s.on('incident-assigned', callback);
+}
+
+/**
+ * Remove accident assignment listener
+ * @param {Function} callback
+ */
+export function offIncidentAssigned(callback) {
+  const s = getSocket();
+  s.off('incident-assigned', callback);
 }
 
 /**
@@ -76,4 +85,49 @@ export function disconnectSocket() {
     socket.disconnect();
     socket = null;
   }
+}
+
+/**
+ * Emit admin accident response to backend (to node)
+ * @param {object} response - The response object to send
+ */
+export function emitAdminAccidentResponse(response) {
+  const s = getSocket();
+  s.emit('admin_accident_response', response);
+}
+
+/**
+ * Listen for node heartbeat events
+ * @param {Function} callback - handler for heartbeat data
+ */
+export function onNodeHeartbeat(callback) {
+  const s = getSocket();
+  s.on('node_heartbeat', callback);
+}
+
+/**
+ * Remove node heartbeat listener
+ * @param {Function} callback
+ */
+export function offNodeHeartbeat(callback) {
+  const s = getSocket();
+  s.off('node_heartbeat', callback);
+}
+
+/**
+ * Listen for node config update events
+ * @param {Function} callback - handler for config update data
+ */
+export function onNodeConfigUpdate(callback) {
+  const s = getSocket();
+  s.on('node_config_update', callback);
+}
+
+/**
+ * Remove node config update listener
+ * @param {Function} callback
+ */
+export function offNodeConfigUpdate(callback) {
+  const s = getSocket();
+  s.off('node_config_update', callback);
 }

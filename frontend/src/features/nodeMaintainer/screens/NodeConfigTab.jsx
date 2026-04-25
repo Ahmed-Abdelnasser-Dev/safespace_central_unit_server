@@ -8,12 +8,14 @@
 
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectSelectedNode, updateNodeSpecs } from '../nodesSlice';
+import { selectSelectedNode, updateNodeSpecs, updateNodeStatus } from '../nodesSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import SectionLabel from '../components/forms/SectionLabel';
 import ConfigCard from '../components/cards/ConfigCard';
 import FormField from '../components/forms/FormField';
 import PrimaryButton from '../components/forms/PrimaryButton';
+import StatusBadge from '../components/ui/StatusBadge';
+import Button from '@/components/ui/Button.jsx';
 import { typography, fontFamily } from '../styles/typography';
 
 function NodeConfigTab() {
@@ -35,6 +37,11 @@ function NodeConfigTab() {
       specs,
     }));
     setHasChanges(false);
+  };
+
+  const handleToggleStatus = () => {
+    const nextStatus = node.status === 'online' ? 'offline' : 'online';
+    dispatch(updateNodeStatus({ nodeId: node.id, status: nextStatus }));
   };
 
   const configSections = [
@@ -66,6 +73,25 @@ function NodeConfigTab() {
 
   return (
     <div className="p-[20px] space-y-[20px]">
+      <div className="space-y-[12px]">
+        <SectionLabel text="Node Status" icon="power-off" />
+        <ConfigCard>
+          <div className="flex flex-wrap items-center justify-between gap-[12px]">
+            <div className="flex items-center gap-[10px]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>Current</span>
+              <StatusBadge status={node.status} />
+            </div>
+            <Button
+              variant={node.status === 'online' ? 'danger' : 'primary'}
+              size="sm"
+              onClick={handleToggleStatus}
+            >
+              {node.status === 'online' ? 'Deactivate Node' : 'Activate Node'}
+            </Button>
+          </div>
+        </ConfigCard>
+      </div>
+
       {configSections.map(section => (
         <div key={section.title} className="space-y-[12px]">
           <SectionLabel text={section.title} icon={section.icon} />
@@ -85,6 +111,29 @@ function NodeConfigTab() {
           </ConfigCard>
         </div>
       ))}
+
+      {/* System Information (Read-only) */}
+      <div className="space-y-[12px]">
+        <SectionLabel text="System Information" icon="microchip" />
+        <ConfigCard>
+          <div className="space-y-[8px]">
+            <div className="flex justify-between items-center py-[8px] border-b border-[#e5e7eb]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>Firmware Version</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>{node.firmwareVersion || 'unknown'}</span>
+            </div>
+            <div className="flex justify-between items-center py-[8px] border-b border-[#e5e7eb]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>AI Model Version</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>{node.modelVersion || 'unknown'}</span>
+            </div>
+            <div className="flex justify-between items-center py-[8px]">
+              <span className="text-[#6a7282]" style={{ ...typography.label, fontFamily }}>Uptime</span>
+              <span className="text-[#101828] font-medium" style={{ ...typography.body, fontFamily }}>
+                {node.uptimeSec ? `${Math.floor(node.uptimeSec / 3600)}h ${Math.floor((node.uptimeSec % 3600) / 60)}m` : '0m'}
+              </span>
+            </div>
+          </div>
+        </ConfigCard>
+      </div>
 
       {/* Save Button */}
       <PrimaryButton

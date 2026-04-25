@@ -7,7 +7,7 @@ import Button from './Button.jsx';
  * @param {boolean} props.open
  * @param {function} props.onClose
  * @param {React.ReactNode} props.children
- * @param {string} [props.size] - width sizing (md | lg)
+ * @param {string} [props.size] - width sizing (md | lg | full)
  */
 function Modal({ open, onClose, children, size = 'lg' }) {
   useEffect(() => {
@@ -17,11 +17,18 @@ function Modal({ open, onClose, children, size = 'lg' }) {
   }, [open, onClose]);
 
   if (!open) return null;
-  const sizes = { md: 'max-w-2xl', lg: 'max-w-5xl' };
+  const isFull = size === 'full';
+  const sizes = { md: 'max-w-2xl', lg: 'max-w-5xl', full: 'max-w-none' };
+  const containerClasses = isFull
+    ? 'fixed inset-0 z-50 flex items-stretch justify-center animate-fadeIn'
+    : 'fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 animate-fadeIn';
+  const contentClasses = isFull
+    ? `relative w-full h-full ${sizes[size]}`
+    : `relative w-full ${sizes[size]} mx-4 animate-slideUp`;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 animate-fadeIn">
+    <div className={containerClasses}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} />
-      <div className={`relative w-full ${sizes[size]} mx-4 animate-slideUp`}>{children}</div>
+      <div className={contentClasses}>{children}</div>
     </div>
   );
 }

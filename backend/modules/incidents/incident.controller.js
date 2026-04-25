@@ -12,7 +12,7 @@ const AppError = require('../../utils/AppError');
 const incidentService = require('./incident.service');
 const { logger } = require('../../utils/logger');
 const dotenv = require('dotenv');
-dotenv.config();
+dotenv.config({ path: require('path').resolve(__dirname, '../../../.env') });
 const MobileAppNotificationService = require('../../utils/mobileAppNotificationService');
 const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
 
@@ -28,19 +28,28 @@ const mobileAppNotificationService = new MobileAppNotificationService(process.en
  */
 const accidentDetected = catchAsync(async (req, res, next) => {
   // Extract text fields from multipart form
-  const { lat, long, lanNumber, nodeId } = req.body;
+  const { lat, long, lanNumber, nodeId, accidentPolygon } = req.body;
 
   // Validate that required fields are present
-  if (!lat || !long || !lanNumber || !nodeId) {
-    return next(new AppError('Missing required fields: lat, long, lanNumber, nodeId', 400));
+  if (!lat || !long || !lanNumber || !nodeId || !accidentPolygon) {
+    return next(new AppError('Missing required fields: lat, long, lanNumber, nodeId, accidentPolygon', 400));
   }
 
-  // Parse integer fields
+  // Parse lane number to integer (nodeId is a string identifier)
   const parsedLanNumber = parseInt(lanNumber, 10);
-  const parsedNodeId = parseInt(nodeId, 10);
 
-  if (isNaN(parsedLanNumber) || isNaN(parsedNodeId)) {
-    return next(new AppError('lanNumber and nodeId must be valid integers', 400));
+  if (isNaN(parsedLanNumber)) {
+    return next(new AppError('lanNumber must be a valid integer', 400));
+  }
+
+  // Parse accident polygon JSON (comes as string from form-data)
+  let parsedAccidentPolygon;
+  try {
+    parsedAccidentPolygon = typeof accidentPolygon === 'string' 
+      ? JSON.parse(accidentPolygon) 
+      : accidentPolygon;
+  } catch (error) {
+    return next(new AppError('accidentPolygon must be valid JSON', 400));
   }
 
   // Validate at least one media file
@@ -53,8 +62,9 @@ const accidentDetected = catchAsync(async (req, res, next) => {
     lat,
     long,
     lanNumber: parsedLanNumber,
-    nodeId: parsedNodeId,
+    nodeId, // Keep as string - matches database schema
     mediaPaths: req.files.map(f => f.path),
+    accidentPolygon: parsedAccidentPolygon, // Use parsed object
   };
 
   // Notification to Mobile App Server will be sent after admin confirmation, not here.
@@ -65,7 +75,7 @@ const accidentDetected = catchAsync(async (req, res, next) => {
   const result = await incidentService.processAccidentDetection(incidentData, io);
 
   // Log successful processing
-  logger.info(`Accident processed successfully from Node ${parsedNodeId}`);
+  logger.info(`Accident processed successfully from Node ${nodeId}`);
 
   // Send success response with decision results
   res.status(200).json({
@@ -81,12 +91,14 @@ module.exports = {
   accidentDetected,
   accidentDecision: catchAsync(async (req, res) => {
     const { incidentId, nodeId, status, actions, message } = req.body;
+    const io = req.app.get('io');
     const decision = await incidentService.processAccidentDecision({
       incidentId,
       nodeId: Number(nodeId),
       status,
       actions,
       message,
+      io // Pass io for real-time notifications
     });
     logger.info(`Decision recorded for incident ${incidentId}: ${status}`);
     res.status(200).json({ success: true, decision, receivedAt: new Date().toISOString() });
@@ -113,7 +125,7 @@ module.exports = {
 
     // Generate unique incident ID
     const incidentId = `mobile_incident_${Date.now()}`;
-    const nodeId = 999; // Default external source ID
+    const nodeId = "safe-space-node-001"; // Default external source ID
 
     // Build media list from uploaded files (type + URL)
     const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi', 'mkv'];
@@ -181,7 +193,7 @@ module.exports = {
     }
 
     const incidentIdLocal = `mobile_${accidentId || Date.now()}`;
-    const nodeId = 999; // external source
+    const nodeId = "safe-space-node-001"; // external source
 
     // If media contains external URLs, try to download and store locally so the dashboard can serve them reliably
     const fs = require('fs');
@@ -249,7 +261,35 @@ module.exports = {
       locationName: description,
       mediaList,
       timestamp: Date.now(),
-      severity: severity || 'unknown',
+      severity: severity || 'HIGH',
+      node: {
+        name: `Mobile Report - ${nodeId}`,
+        defaultSpeedLimit: 40,
+        defaultLaneCount: 3,
+        defaultLaneConfiguration: [
+          { lane: 1, name: 'Lane 1', state: 'open' },
+          { lane: 2, name: 'Lane 2', state: 'open' },
+          { lane: 3, name: 'Lane 3', state: 'open' }
+        ]
+      },
+      ai: {
+        severity: 3,
+        confidence: 0.90,
+        accidentType: 'Mobile Check-in',
+        vehicleCount: 1,
+        injuryRisk: 'Unknown',
+        recommendations: [],
+        mode: 'MOBILE'
+      },
+      decision: {
+        blockedLanes: [],
+        laneConfiguration: 'open,open,open',
+        speedLimit: 40,
+        originalSpeedLimit: 80,
+        speedReduction: 40,
+        actions: ['MONITOR_SITUATION'],
+        influencedByAI: false
+      }
     };
 
     // Register into incident store so admin decisions can reference it

@@ -13,7 +13,7 @@ const { z } = require('zod');
  * Schema for accident-detected endpoint body validation
  * Note: multipart/form-data fields come as strings, so we parse them
  */
-const accidentDetectedSchema = z.object({
+const accidentDetectedSchema = {
   body: z.object({
     lat: z.string({
       required_error: 'Latitude is required',
@@ -31,43 +31,162 @@ const accidentDetectedSchema = z.object({
 
     nodeId: z.string({
       required_error: 'Node ID is required',
-    }).refine((val) => !isNaN(parseInt(val, 10)), {
-      message: 'nodeId must be a valid integer',
+    }).min(1, 'Node ID cannot be empty'),
+
+    accidentPolygon: z.string({
+      required_error: 'Accident polygon is required for decision analysis',
+    }).transform((val, ctx) => {
+      try {
+        // Validate input is a non-empty string
+        if (typeof val !== 'string' || val.trim().length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must be a non-empty JSON string',
+          });
+          return z.NEVER;
+        }
+        
+        let parsed;
+        try {
+          parsed = JSON.parse(val);
+        } catch (jsonError) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `accidentPolygon must be valid JSON. Parse error: ${jsonError.message}. Input: ${val.substring(0, 100)}${val.length > 100 ? '...' : ''}`,
+          });
+          return z.NEVER;
+        }
+        
+        // Validate structure
+        if (!parsed || typeof parsed !== 'object') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must be a JSON object',
+          });
+          return z.NEVER;
+        }
+        
+        if (!parsed.points || !Array.isArray(parsed.points)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'accidentPolygon must contain a points array',
+          });
+          return z.NEVER;
+        }
+        
+        if (parsed.points.length < 3) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `accidentPolygon must have at least 3 points (received ${parsed.points.length})`,
+          });
+          return z.NEVER;
+        }
+        
+        // Validate each point has finite x and y coordinates
+        for (let i = 0; i < parsed.points.length; i++) {
+          const p = parsed.points[i];
+          
+          if (!p || typeof p !== 'object') {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Point ${i} must be an object with x and y coordinates`,
+            });
+            return z.NEVER;
+          }
+          
+          if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Point ${i} must have finite numeric x and y coordinates (received: x=${p.x}, y=${p.y})`,
+            });
+            return z.NEVER;
+          }
+        }
+        
+        // Validate baseWidth is a positive number
+        if (!Number.isFinite(parsed.baseWidth) || parsed.baseWidth <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `accidentPolygon must have a valid positive baseWidth (received: ${parsed.baseWidth})`,
+          });
+          return z.NEVER;
+        }
+        
+        // Validate baseHeight is a positive number
+        if (!Number.isFinite(parsed.baseHeight) || parsed.baseHeight <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `accidentPolygon must have a valid positive baseHeight (received: ${parsed.baseHeight})`,
+          });
+          return z.NEVER;
+        }
+        
+        // Validate coordinate ranges are reasonable (within ±2x of base dimensions)
+        const maxX = Math.max(...parsed.points.map(p => Math.abs(p.x)));
+        const maxY = Math.max(...parsed.points.map(p => Math.abs(p.y)));
+        
+        if (maxX > parsed.baseWidth * 2 || maxY > parsed.baseHeight * 2) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Polygon coordinates exceed expected range. Max X: ${maxX} (base: ${parsed.baseWidth}), Max Y: ${maxY} (base: ${parsed.baseHeight})`,
+          });
+          return z.NEVER;
+        }
+        
+        return parsed;
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unexpected error validating accidentPolygon: ${error.message}`,
+        });
+        return z.NEVER;
+      }
     }),
   }),
-  files: z.array(z.any(), {
-    required_error: 'At least one media file is required (images/videos)',
-    invalid_type_error: 'Media must be an array of files',
-  }).min(1, 'At least one media file is required (images/videos)'),
-});
+};
 
 /**
  * Schema for accident decision review (admin/operator confirmation)
- * Validates actions selected or rejection status.
+ * Supports: CONFIRMED, MODIFIED, REJECTED
+ * Validates actions, speed limits, and lane configurations.
  */
-const accidentDecisionSchema = z.object({
+const accidentDecisionSchema = {
   body: z.object({
     incidentId: z.string({ required_error: 'incidentId is required' }),
     nodeId: z.number({ required_error: 'nodeId is required' }).int().positive(),
-    status: z.enum(['CONFIRMED', 'REJECTED']),
-    actions: z.array(z.enum(['reduce-speed', 'block-routes', 'call-emergency'])).optional(),
+    status: z.enum(['CONFIRMED', 'MODIFIED', 'REJECTED'], {
+      required_error: 'status must be CONFIRMED, MODIFIED, or REJECTED'
+    }),
+    actions: z.array(z.string()).optional(), // Array of action strings
     message: z.string().optional(),
+    speedLimit: z.number().int().min(20).max(200).optional(), // Modified speed limit
+    laneConfiguration: z.string().optional(), // Modified lane config (e.g., "open,blocked,right")
   }).refine((data) => {
-    // If confirmed must have at least one action
-    if (data.status === 'CONFIRMED') return Array.isArray(data.actions) && data.actions.length > 0;
-    // If rejected must include message
-    if (data.status === 'REJECTED') return typeof data.message === 'string' && data.message.length > 2;
+    // CONFIRMED: must have at least one action
+    if (data.status === 'CONFIRMED') {
+      return Array.isArray(data.actions) && data.actions.length > 0;
+    }
+    // REJECTED: must include message
+    if (data.status === 'REJECTED') {
+      return typeof data.message === 'string' && data.message.length > 2;
+    }
+    // MODIFIED: should have some modified data
+    if (data.status === 'MODIFIED') {
+      return data.speedLimit !== undefined || 
+             data.laneConfiguration !== undefined || 
+             (Array.isArray(data.actions) && data.actions.length > 0);
+    }
     return false;
   }, {
-    message: 'Invalid decision payload: CONFIRMED requires actions; REJECTED requires message.'
+    message: 'Invalid decision: CONFIRMED needs actions, REJECTED needs message, MODIFIED needs at least one modification.'
   }),
-});
+};
 
 /**
  * Schema for mobile/external accident report endpoint
  * Accepts reports from external servers without multipart uploads
  */
-const mobileAccidentDetectedSchema = z.object({
+const mobileAccidentDetectedSchema = {
   body: z.object({
     description: z.string({
       required_error: 'Description is required',
@@ -85,11 +204,7 @@ const mobileAccidentDetectedSchema = z.object({
     
     occurredAt: z.string().optional(),
   }),
-  files: z.array(z.any(), {
-    required_error: 'At least one media file is required (images/videos)',
-    invalid_type_error: 'Media must be an array of files',
-  }).min(1, 'At least one media file is required (images/videos)'),
-});
+};
 
 /**
  * Schema for server-to-server Mobile->Central accident report
@@ -103,7 +218,7 @@ const mobileAccidentDetectedSchema = z.object({
  *   media: [{ type: 'image'|'video', url: string }]
  * }
  */
-const mobileServerToCentralSchema = z.object({
+const mobileServerToCentralSchema = {
   body: z.object({
     accidentId: z.string().optional(),
     description: z.string({ required_error: 'description is required' }).min(1),
@@ -115,13 +230,30 @@ const mobileServerToCentralSchema = z.object({
       type: z.enum(['image', 'video']),
       url: z.string().refine((v) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')), { message: 'url must be a full URL or an absolute path starting with /' })
     })).optional(),
-  })
-});
+  }),
+};
+
+/**
+ * Schema for node snapshot upload
+ * POST /api/nodes/:nodeId/snapshot
+ */
+const nodeSnapshotSchema = {
+  body: z.object({
+    incident_id: z.string().optional(),
+    timestamp: z.string(),
+    incident_type: z.string(),
+    confidence: z.string().transform(val => parseFloat(val)),
+  }),
+  params: z.object({
+    nodeId: z.string().min(1, 'Node ID is required'),
+  }),
+};
 
 module.exports = {
   accidentDetectedSchema,
   accidentDecisionSchema,
   mobileAccidentDetectedSchema,
   mobileServerToCentralSchema,
+  nodeSnapshotSchema,
 };
 

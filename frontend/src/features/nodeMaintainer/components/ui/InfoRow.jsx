@@ -17,13 +17,10 @@ function InfoRow({
 }) {
   return (
     <div 
-      className={`flex justify-between items-center gap-[8px] ${className}`}
-      style={{
-        paddingBottom: '8px',
-      }}
+      className={`flex justify-between items-center gap-2 pb-2 ${className}`}
     >
       <span
-        className="text-[#6a7282] font-normal"
+        className="text-safe-text-gray font-normal"
         style={{
           fontSize: 'clamp(12px, 1.2vw, 13px)',
           fontFamily,
@@ -32,7 +29,7 @@ function InfoRow({
         {label}
       </span>
       <span
-        className="font-bold text-[#101828] text-right"
+        className="font-bold text-gray-900 text-right"
         style={{
           fontSize: 'clamp(13px, 1.3vw, 16px)',
           fontFamily,
