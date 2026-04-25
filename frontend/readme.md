@@ -1,34 +1,21 @@
-I dont know exactly how prisma works and if u will have the same local data as mee or not 
-i dont think it works like that but just to be safe 
-admin account noureen was changed to email:noureen33@safespace.com password:eh,12SD@
+# Safe Space Frontend
 
-security measures done 
-Overall Security Posture: STRONG ✅
-The system implements 90% of the security requirements specified in the security document:
-Fully Implemented:
+This frontend repository must not contain any real credentials, tokens, or personal account data.
 
-✅ Role-Based Access Control
-✅ Server-side authentication on every request
-✅ Strong password policy with validation
-✅ Password hashing with bcrypt
-✅ Password history (prevent reuse)
-✅ Account lockout after failed attempts
-✅ Generic error messages
-✅ Authorization checks on all endpoints
-✅ Audit logging of security events
-✅ Insecure Direct Object Reference prevention
-✅ Method-level access control
-✅ Machine-to-machine access control
+## Local Development
 
-Partially Implemented:
+Create a local `.env` file in the frontend root and define only non-secret defaults:
 
-⚠️ MFA/2FA (database + backend ready, needs TOTP integration)
-⚠️ Activity logs (backend ready, frontend UI needs API connection)
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_WS_URL=ws://localhost:5000
+```
 
-Not Implemented:
+Current runtime code reads `VITE_API_URL` and `VITE_WS_URL`.
+Planned split variables (`VITE_SOCKET_URL`, `VITE_NODE_VIDEO_WS_URL`) will be introduced with the frontend decoupling phase.
 
-❌ CAPTCHA
-❌ Rate limiting (IP-based)
-❌ Automatic logout after shift time
-❌ Response timing unification
-❌ Content length unification
+## Security Notes
+
+- Do not commit usernames, emails, passwords, API keys, or refresh tokens.
+- Keep production secrets in deployment environment variables only.
+- Use role-based access controls and backend authorization checks for all protected actions.
