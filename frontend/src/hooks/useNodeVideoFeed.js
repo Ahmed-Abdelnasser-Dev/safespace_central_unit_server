@@ -34,7 +34,6 @@ export function useNodeVideoFeed() {
         wsRef.current = ws;
 
         ws.onopen = () => {
-          console.log('WebSocket connected to node video feed');
           setIsConnected(true);
 
           // Subscribe to specific node updates if one is selected
@@ -61,7 +60,6 @@ export function useNodeVideoFeed() {
         };
 
         ws.onclose = () => {
-          console.log('WebSocket disconnected. Reconnecting in 3s...');
           setIsConnected(false);
           
           // Attempt to reconnect after 3 seconds
@@ -133,7 +131,6 @@ export function useNodeVideoFeed() {
         break;
 
       case 'subscribed':
-        console.log(`Subscribed to nodes:`, message.nodeIds);
         break;
 
       default:

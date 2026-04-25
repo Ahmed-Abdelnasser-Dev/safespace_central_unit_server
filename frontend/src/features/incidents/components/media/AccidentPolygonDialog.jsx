@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import Button from '../../../../components/ui/Button.jsx';
+import Button from '@/components/ui/Button.jsx';
 
 /**
  * AccidentPolygonDialog - Styled dialog for viewing accident polygons

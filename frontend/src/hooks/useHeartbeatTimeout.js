@@ -45,9 +45,6 @@ export function useHeartbeatTimeout() {
 
         // If heartbeat is stale, mark offline
         if (timeSinceLastHeartbeat > HEARTBEAT_TIMEOUT_MS) {
-          console.warn(
-            `⏱️ Node ${node.id} heartbeat stale (${Math.floor(timeSinceLastHeartbeat / 1000)}s ago). Marking offline.`
-          );
           dispatch(markNodeOffline({ nodeId: node.id }));
         }
       });

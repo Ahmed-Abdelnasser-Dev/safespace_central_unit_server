@@ -10,14 +10,17 @@
 import React, { useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectNode, selectAllNodes, selectSelectedNodeId } from '../../nodesSlice';
-import Map from 'react-map-gl';
+import Map from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand } from '@fortawesome/free-solid-svg-icons';
-import Button from '../../../../components/ui/Button';
-import Card from '../../../../components/ui/Card';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import FullScreenMapDialog from "../FullScreenMapDialog";
-import { MapHoverCard, MapNodeMarker, useMapAutoCenter, useMapHoverPosition } from '../map';
+import MapHoverCard from '../map/MapHoverCard.jsx';
+import MapNodeMarker from '../map/MapNodeMarker.jsx';
+import useMapAutoCenter from '../map/useMapAutoCenter.js';
+import useMapHoverPosition from '../map/useMapHoverPosition.js';
 
 export default function NetworkMapCard() {
   const dispatch = useDispatch();

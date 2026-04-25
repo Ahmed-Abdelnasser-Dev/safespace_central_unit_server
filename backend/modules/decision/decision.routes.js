@@ -8,13 +8,15 @@
 
 const express = require('express');
 const decisionController = require('./decision.controller');
+const validate = require('../../middleware/validate');
+const { decisionAnalyzeSchema } = require('./decision.schema');
 
 const router = express.Router();
 
 /**
- * POST /api/decision/analyze
+ * POST /api/decisions/analyze
  * Test decision-making
  */
-router.post('/analyze', decisionController.makeDecision);
+router.post('/analyze', validate(decisionAnalyzeSchema), decisionController.makeDecision);
 
 module.exports = router;

@@ -15,7 +15,7 @@ const aiService = require('./ai.service');
  * @route POST /api/ai/analyze
  * @access Internal/Testing
  */
-exports.analyzeAccident = catchAsync(async (req, res) => {
+const analyzeAccident = catchAsync(async (req, res) => {
   const { mediaPath, mediaPaths, accidentPolygon, location } = req.body;
   
   const result = await aiService.analyzeAccident({
@@ -30,3 +30,7 @@ exports.analyzeAccident = catchAsync(async (req, res) => {
     data: result
   });
 });
+
+module.exports = {
+  analyzeAccident,
+};

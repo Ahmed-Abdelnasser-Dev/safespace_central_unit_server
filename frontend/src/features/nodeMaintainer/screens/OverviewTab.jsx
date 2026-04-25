@@ -12,8 +12,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { API_BASE_URL } from '@/lib/apiConfig';
 import { selectSelectedNode } from "../nodesSlice";
-import { useNodeVideoFeed } from "../../../hooks/useNodeVideoFeed";
+import { useNodeVideoFeed } from "@/hooks/useNodeVideoFeed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMicrochip,
@@ -27,7 +28,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import MetricCard from "../components/cards/MetricCard";
 import SectionHeader from "../components/layout/SectionHeader";
-import InfoRow from "../components/ui/InfoRow";
+import NodeInfoRow from "../components/ui/NodeInfoRow";
 import ListItem from "../components/lists/ListItem";
 import RoadStatusDisplay from "../components/sections/RoadStatusDisplay";
 import { typography, fontFamily } from "../styles/typography";
@@ -69,7 +70,7 @@ export default function OverviewTab() {
       setDisplayImage(`data:image/jpeg;base64,${currentFrame.frameData}`);
     } else if (lastSnapshot && lastSnapshot.snapshotPath) {
       // Display last snapshot from incident
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const baseUrl = API_BASE_URL;
       setDisplayImage(`${baseUrl}${lastSnapshot.snapshotPath}`);
     }
   }, [currentFrame, lastSnapshot]);
@@ -270,30 +271,30 @@ export default function OverviewTab() {
 
       <div className="bg-[#f7f8f9] rounded-[6px] sm:rounded-[7px] md:rounded-[8px] p-[12px] sm:p-[14px] md:p-[16px] border border-[#e5e7eb] space-y-[8px] sm:space-y-[10px] md:space-y-[12px]">
           <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <InfoRow label="Install Date" value={node.createdAt ? new Date(node.createdAt).toLocaleDateString() : 'Not available'} />
+            <NodeInfoRow label="Install Date" value={node.createdAt ? new Date(node.createdAt).toLocaleDateString() : 'Not available'} />
           </div>
 
           <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <InfoRow label="Last Heartbeat" value={node.lastHeartbeat ? new Date(node.lastHeartbeat).toLocaleString() : 'Not available'} />
+            <NodeInfoRow label="Last Heartbeat" value={node.lastHeartbeat ? new Date(node.lastHeartbeat).toLocaleString() : 'Not available'} />
           </div>
 
           <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <InfoRow label="Uptime" value={formatUptime(node.uptimeSec || 0)} />
+            <NodeInfoRow label="Uptime" value={formatUptime(node.uptimeSec || 0)} />
           </div>
 
         <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-          <InfoRow label="IP Address" value={node.nodeSpecs.ipAddress} />
+          <NodeInfoRow label="IP Address" value={node.nodeSpecs.ipAddress} />
         </div>
 
         <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-          <InfoRow label="Firmware Version" value={node.firmwareVersion || 'unknown'} />
+          <NodeInfoRow label="Firmware Version" value={node.firmwareVersion || 'unknown'} />
         </div>
 
         <div style={{ borderBottom: '1px solid #e5e7eb' }}>
-          <InfoRow label="AI Model Version" value={node.modelVersion || 'unknown'} />
+          <NodeInfoRow label="AI Model Version" value={node.modelVersion || 'unknown'} />
         </div>
 
-        <InfoRow 
+        <NodeInfoRow 
           label="Coordinates" 
           value={`${node.location.latitude?.toFixed(4)}, ${node.location.longitude?.toFixed(4)}`} 
         />

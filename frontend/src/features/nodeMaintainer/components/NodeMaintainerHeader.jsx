@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import Button from '../../../components/ui/Button.jsx';
+import Button from '@/components/ui/Button.jsx';
 
 export default function NodeMaintainerHeader({ onAddNode }) {
   return (

@@ -10,8 +10,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
+import { Toaster } from 'react-hot-toast';
 import store from './app/store.js';
 import App from './App.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
 import './icons.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -19,8 +21,11 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <App />
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <App />
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+      </Provider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

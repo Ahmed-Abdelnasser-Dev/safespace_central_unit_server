@@ -3,7 +3,8 @@
  * Restored file: handles port availability and graceful shutdown.
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const env = require('./config/env');
 const net = require('net');
 const http = require('http');
 const fs = require('fs');
@@ -12,15 +13,16 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const { logger } = require('./utils/logger');
 const wsManager = require('./utils/websocketManager');
+const queueManagerModule = require('./modules/incidents/incidentQueueManager');
 const { startHeartbeatMonitor } = require('./modules/nodes/node.service');
 
-const PORT = parseInt(process.env.PORT, 10) || 5000;
-const HOST = process.env.HOST || '0.0.0.0';
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4000';
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : [FRONTEND_URL, 'http://192.168.10.0/24']; 
+const PORT = env.PORT;
+const HOST = env.HOST;
+const NODE_ENV = env.NODE_ENV;
+const FRONTEND_URL = env.FRONTEND_URL;
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
+  ? env.ALLOWED_ORIGINS.split(',')
+  : [FRONTEND_URL, 'http://192.168.10.0/24'];
 
 // Create HTTP server and Socket.IO instance
 const server = http.createServer(app);
@@ -67,11 +69,20 @@ app.set('io', io);
 wsManager.initialize(server);
 wsManager.startHealthCheck();
 
-
+// Initialize the Queue Manager Singleton
+const qmInstance = queueManagerModule.initialize(io);
 
 // Socket.IO connection handler (for dashboard clients)
 io.on('connection', (socket) => {
   logger.info(`✅ Dashboard client connected: ${socket.id}`);
+  
+  // Register new client in Queue Manager to receive incidents
+  qmInstance.handleNewConnection(socket, { id: 'dash_' + socket.id, role: 'admin' });
+
+  socket.on('disconnect', () => {
+    logger.info(`❌ Dashboard client disconnected: ${socket.id}`);
+    qmInstance.handleDisconnect(socket.id);
+  });
 
   /**
    * Validate and parse base64 media payload.
@@ -247,6 +258,8 @@ io.on('connection', (socket) => {
   // Listen for admin accident response from dashboard
   socket.on('admin_accident_response', async (data) => {
     try {
+      qmInstance.markClientIdle(socket.id);
+      
       // Validate required fields
       if (!data || typeof data !== 'object' || !data.incidentId) {
         logger.warn('Invalid admin_accident_response payload received');
@@ -262,7 +275,16 @@ io.on('connection', (socket) => {
       io.emit('admin_accident_response', data);
 
       // After relaying, process the admin decision (triggers Mobile App Server notification)
-      const { incidentId, nodeId, isAccident, speedLimit, laneStates, blockedLanes, timestamp } = data;
+      const { incidentId, isAccident, speedLimit, laneStates, blockedLanes, timestamp } = data;
+      let { nodeId } = data;
+      
+      const { prisma } = require('./utils/prisma');
+      const incident = await prisma.incident.findUnique({
+        where: { incidentId }
+      });
+      if (incident && !nodeId) {
+        nodeId = incident.nodeId;
+      }
       
       logger.info(`📋 Admin Response Data Extracted:`, {
         incidentId,
@@ -364,7 +386,19 @@ function ensurePortAvailable(port) {
 }
 
 ensurePortAvailable(PORT)
-  .then(() => {
+  .then(async () => {
+    // Empty the queue on server restart to clear old pending/assigned incidents
+    const { prisma } = require('./utils/prisma');
+    try {
+      const resetResult = await prisma.incident.updateMany({
+        where: { status: { in: ['pending', 'assigned'] } },
+        data: { status: 'cancelled' }
+      });
+      logger.info(`🧹 Emptied incident queue on restart: cancelled ${resetResult.count} stale incidents`);
+    } catch (qErr) {
+      logger.error('Failed to empty incident queue on restart:', qErr);
+    }
+
     server
       .listen(PORT, HOST, () => {
         logger.info('Safe Space Central Unit is running');

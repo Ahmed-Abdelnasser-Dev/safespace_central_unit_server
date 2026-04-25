@@ -11,9 +11,10 @@ const { logger } = require('../../utils/logger');
 const MobileAppNotificationService = require('../../utils/mobileAppNotificationService');
 const aiService = require('../ai/ai.service');
 const decisionService = require('../decision/decision.service');
+const queueManagerModule = require('./incidentQueueManager');
 const { prisma } = require('../../utils/prisma');
 const dotenv = require('dotenv');
-dotenv.config();
+dotenv.config({ path: require('path').resolve(__dirname, '../../../.env') });
 const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
 
 // In-memory store for pending accident decisions
@@ -23,6 +24,8 @@ const incidentDataMap = new Map();
 // Track recent notifications sent to Mobile App Server to avoid duplicate re-emits
 const recentMobileNotifications = new Map();
 const MOBILE_NOTIFICATION_TTL_MS = 15000; // 15 seconds
+const FAILED_MOBILE_NOTIFICATION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const failedMobileNotificationCleanupTimers = new Map();
 
 function _roundCoord(v) {
   return Math.round(Number(v) * 10000) / 10000;
@@ -40,6 +43,26 @@ function isRecentMobileNotification({ latitude, longitude, nodeId }) {
   if (Date.now() - ts <= MOBILE_NOTIFICATION_TTL_MS) return true;
   recentMobileNotifications.delete(key);
   return false;
+}
+
+function clearFailedMobileNotificationCleanup(incidentId) {
+  const existingTimer = failedMobileNotificationCleanupTimers.get(incidentId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    failedMobileNotificationCleanupTimers.delete(incidentId);
+  }
+}
+
+function scheduleFailedMobileNotificationCleanup(incidentId) {
+  clearFailedMobileNotificationCleanup(incidentId);
+
+  const timer = setTimeout(() => {
+    incidentDataMap.delete(incidentId);
+    failedMobileNotificationCleanupTimers.delete(incidentId);
+    logger.warn(`[MOBILE APP NOTIFY] Cleared stale incident context after retry window expired for ${incidentId}`);
+  }, FAILED_MOBILE_NOTIFICATION_TTL_MS);
+
+  failedMobileNotificationCleanupTimers.set(incidentId, timer);
 }
 
 /**
@@ -104,6 +127,49 @@ const processAccidentDetection = async (incidentData, io) => {
 
   logger.info(`🚨 INCIDENT DETECTED - Node ${nodeId} at (${lat}, ${long}), Lane ${lanNumber}`);
 
+  // Build media list with type and URL
+  const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
+  const mediaList = mediaPaths.map((p) => {
+    const ext = p.split('.').pop().toLowerCase();
+    const type = videoExtensions.includes(ext) ? 'video' : 'image';
+    const url = `/uploads/incidents/${p.split('/').pop()}`;
+    return { url, type };
+  });
+
+  // ========================================
+  // STEP 0: DEDUPLICATION LOGIC
+  // ========================================
+  const fifteenSecondsAgo = new Date(Date.now() - 5 * 1000);
+  const existingIncident = await prisma.incident.findFirst({
+    where: {
+      nodeId,
+      status: { in: ['pending', 'assigned'] },
+      createdAt: { gte: fifteenSecondsAgo }
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, incidentId: true, mediaUrls: true }
+  });
+
+  if (existingIncident) {
+    logger.info(`🔄 DEDUPLICATION: Found active incident ${existingIncident.incidentId} for Node ${nodeId} in the last 15 seconds. Appending media and skipping AI/Decision logic.`);
+    
+    // Parse existing mediaUrls ( Prisma JSON array )
+    const existingMedia = Array.isArray(existingIncident.mediaUrls) ? existingIncident.mediaUrls : [];
+    const updatedMedia = [...existingMedia, ...mediaList];
+    
+    await prisma.incident.update({
+      where: { id: existingIncident.id },
+      data: { mediaUrls: updatedMedia }
+    });
+    
+    return {
+      status: 'success',
+      incidentId: existingIncident.incidentId,
+      message: 'Appended media to existing active incident',
+      deduplicated: true
+    };
+  }
+
   // Generate unique incident ID
   const incidentId = `incident_${nodeId}_${Date.now()}`;
   
@@ -116,17 +182,9 @@ const processAccidentDetection = async (incidentData, io) => {
     timestamp: Date.now(),
   });
 
-  // Build media list with type and URL
-  const videoExtensions = ['mp4', 'webm', 'mpeg', 'mov', 'avi'];
-  const mediaList = mediaPaths.map((p) => {
-    const ext = p.split('.').pop().toLowerCase();
-    const type = videoExtensions.includes(ext) ? 'video' : 'image';
-    const url = `/uploads/incidents/${p.split('/').pop()}`;
-    return { url, type };
-  });
-
   let aiResults = null;
   let decisionResults = null;
+  let dbIncident = null;
   
   try {
     // ========================================
@@ -158,34 +216,6 @@ const processAccidentDetection = async (incidentData, io) => {
     
     logger.info(`✅ Decision Complete - Blocked Lanes: ${decisionResults.blockedLanes.length}, Speed: ${decisionResults.speedLimit} km/h`);
     
-    // ========================================
-    // STEP 3: PERSIST TO DATABASE
-    // ========================================
-    logger.info(`💾 Persisting incident ${incidentId} to database`);
-    
-    await prisma.incident.create({
-      data: {
-        incidentId,
-        nodeId: nodeId,
-        location: {
-          latitude: parseFloat(lat),
-          longitude: parseFloat(long),
-        },
-        accidentPolygon,
-        mediaUrls: mediaList,
-        severityLevel: aiResults.severity,
-        blockedLanes: decisionResults.blockedLanes,
-        laneConfiguration: decisionResults.laneConfiguration,
-        originalSpeedLimit: decisionResults.originalSpeedLimit,
-        adjustedSpeedLimit: decisionResults.speedLimit,
-        adminDecision: null, // Will be updated when admin responds
-        // Note: Full AI and Decision analysis stored in-memory for dashboard
-        // Only summary fields persisted to database
-      },
-    });
-    
-    logger.info(`✅ Incident ${incidentId} persisted to database`);
-    
   } catch (error) {
     logger.error(`❌ Error during AI/Decision analysis`, {
       error: error.message,
@@ -214,6 +244,34 @@ const processAccidentDetection = async (incidentData, io) => {
       nodeDisplay: { message: 'ACCIDENT AHEAD', speedLimit: 60 }
     };
   }
+
+  // ========================================
+  // STEP 3: PERSIST TO DATABASE
+  // ========================================
+  logger.info(`💾 Persisting incident ${incidentId} to database`);
+  
+  dbIncident = await prisma.incident.create({
+    data: {
+      incidentId,
+      nodeId: nodeId,
+      location: {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(long),
+      },
+      accidentPolygon,
+      mediaUrls: mediaList,
+      severityLevel: aiResults.severity,
+      blockedLanes: decisionResults.blockedLanes,
+      laneConfiguration: decisionResults.laneConfiguration,
+      originalSpeedLimit: decisionResults.originalSpeedLimit,
+      adjustedSpeedLimit: decisionResults.speedLimit,
+      adminDecision: null, // Will be updated when admin responds
+      // Note: Full AI and Decision analysis stored in-memory for dashboard
+      // Only summary fields persisted to database
+    },
+  });
+  
+  logger.info(`✅ Incident ${incidentId} persisted to database with id ${dbIncident.id}`);
 
   // ========================================
   // STEP 4: FETCH NODE DATA & SEND TO DASHBOARD
@@ -319,7 +377,7 @@ const processAccidentDetection = async (incidentData, io) => {
     severity: aiResults.severity >= 4 ? 'CRITICAL' : aiResults.severity >= 3 ? 'HIGH' : 'MODERATE',
   };
 
-  logger.info(`📡 Emitting to dashboard: ${incidentId}`, {
+  logger.info(`📡 Queueing and Assigning incident: ${incidentId}`, {
     severity: dashboardPayload.severity,
     aiType: aiResults.accidentType,
     blockedLanes: decisionResults.blockedLanes.length,
@@ -327,7 +385,13 @@ const processAccidentDetection = async (incidentData, io) => {
     nodeDefaultLaneConfigLength: dashboardPayload.node.defaultLaneConfiguration.length
   });
   
-  io.emit('accident-detected', dashboardPayload);
+  try {
+    const qmInstance = queueManagerModule.getInstance();
+    await qmInstance.queueAndAssignIncident(dashboardPayload, dbIncident.id);
+  } catch (qErr) {
+    logger.error('Failed to queue and assign incident falling back to emit', qErr);
+    io.emit('accident-detected', dashboardPayload);
+  }
 
   // ========================================
   // STEP 5: RETURN IMMEDIATELY TO NODE
@@ -441,8 +505,31 @@ async function processAccidentDecision(decisionData) {
 
   // CONFIRMED logic
   logger.info(`Accident decision confirmed for ${incidentId}. Actions: ${actions.join(', ')}`);
-    const incident = incidentDataMap.get(incidentId);
-    if (incident) {
+  
+  let incident = incidentDataMap.get(incidentId);
+  if (!incident) {
+    try {
+      const dbIncident = await prisma.incident.findUnique({
+        where: { incidentId }
+      });
+      if (dbIncident) {
+        incident = {
+          nodeId: dbIncident.nodeId,
+          lanNumber: 'unknown',
+          timestamp: dbIncident.createdAt,
+          lat: dbIncident.latitude || 0,
+          long: dbIncident.longitude || 0,
+        };
+      }
+    } catch (err) {
+      logger.error(`Error fetching incident data from DB for ${incidentId}`, err);
+    }
+  }
+
+  let notificationStatus = 'SKIPPED';
+  if (incident) {
+    let notificationSent = false;
+    try {
       logger.info(`[MOBILE APP NOTIFY] Triggering request to Mobile App Server for Node ${incident.nodeId} Lane ${incident.lanNumber} (incidentId: ${incidentId})`);
       await mobileAppNotificationService.notifyAccident({
         centralUnitAccidentId: incidentId,
@@ -464,10 +551,24 @@ async function processAccidentDecision(decisionData) {
         logger.error('Failed to add recent mobile notification marker', e.message || e);
       }
       logger.info(`Mobile App Server notified for Node ${incident.nodeId} Lane ${incident.lanNumber} after admin confirmation.`);
+      notificationSent = true;
+      notificationStatus = 'SENT';
+    } catch (notificationError) {
+      notificationStatus = 'FAILED';
+      logger.error(`[MOBILE APP NOTIFY] Failed to notify Mobile App Server for incident ${incidentId}`, {
+        error: notificationError.message,
+      });
+    }
+
+    if (notificationSent) {
+      clearFailedMobileNotificationCleanup(incidentId);
       incidentDataMap.delete(incidentId);
     } else {
-      logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
+      scheduleFailedMobileNotificationCleanup(incidentId);
     }
+  } else {
+    logger.error(`No incident data found for ${incidentId}, cannot notify Mobile App Server.`);
+  }
 
   // ========================================
   // EMIT DECISION CONFIRMATION TO DASHBOARD
@@ -490,5 +591,6 @@ async function processAccidentDecision(decisionData) {
     status,
     actions,
     message: 'Decision applied successfully',
+    notificationStatus,
   };
 }

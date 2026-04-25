@@ -12,8 +12,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AppError = require('../../utils/AppError');
+const { logger } = require('../../utils/logger');
 const incidentController = require('./incident.controller');
 const validate = require('../../middleware/validate');
+const protect = require('../../middleware/protect');
+const authorize = require('../../middleware/authorize');
+const mobileServerAuth = require('../../middleware/mobileServerAuth');
+const { validateUploadedMediaSignatures } = require('../../middleware/validateFileSignatures');
 const { accidentDetectedSchema, accidentDecisionSchema, mobileAccidentDetectedSchema } = require('./incident.schema');
 const { mobileServerToCentralSchema } = require('./incident.schema');
 
@@ -58,8 +63,7 @@ const fileFilter = (req, file, cb) => {
     'application/octet-stream' // Some systems send MP4 as this
   ];
   
-  // Log the detected MIME type for debugging
-  console.log(`File upload - Name: ${file.originalname}, MIME: ${file.mimetype}`);
+  logger.info(`File upload - Name: ${file.originalname}, MIME: ${file.mimetype}`);
   
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -83,7 +87,7 @@ const upload = multer({
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return next(new AppError('File size exceeds 10MB limit', 400));
+      return next(new AppError('File size exceeds 100MB limit', 400));
     }
     return next(new AppError(`Upload error: ${err.message}`, 400));
   }
@@ -96,14 +100,16 @@ const handleMulterError = (err, req, res, next) => {
 
 /**
  * POST /api/accident-detected
- * Deprecated. Use Socket.IO event: node_accident_detected
+ * Legacy HTTP ingestion endpoint kept for compatibility and test scripts.
  */
-router.post('/accident-detected', (req, res) => {
-  res.status(410).json({
-    success: false,
-    message: 'Deprecated. Use Socket.IO event: node_accident_detected',
-  });
-});
+router.post(
+  '/accident-detected',
+  upload.array('media', 10),
+  handleMulterError,
+  validateUploadedMediaSignatures,
+  validate(accidentDetectedSchema),
+  incidentController.accidentDetected
+);
 
 /**
  * POST /api/accident-decision
@@ -111,6 +117,8 @@ router.post('/accident-detected', (req, res) => {
  */
 router.post(
   '/accident-decision',
+  protect,
+  authorize('admin', 'road_observer'),
   validate(accidentDecisionSchema),
   incidentController.accidentDecision
 );
@@ -122,9 +130,11 @@ router.post(
  */
 router.post(
   '/mobile-accident-detected',
+  mobileServerAuth,
   // Accept media files from external mobile servers as multipart/form-data
   upload.array('media', 10),
   handleMulterError,
+  validateUploadedMediaSignatures,
   validate(mobileAccidentDetectedSchema),
   incidentController.mobileAccidentDetected
 );
@@ -135,6 +145,7 @@ router.post(
  */
 router.post(
   '/central-unit/send-accident-to-central-unit',
+  mobileServerAuth,
   validate(mobileServerToCentralSchema),
   incidentController.sendAccidentToCentralUnit
 );

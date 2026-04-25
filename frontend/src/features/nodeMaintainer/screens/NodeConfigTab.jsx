@@ -15,7 +15,7 @@ import ConfigCard from '../components/cards/ConfigCard';
 import FormField from '../components/forms/FormField';
 import PrimaryButton from '../components/forms/PrimaryButton';
 import StatusBadge from '../components/ui/StatusBadge';
-import Button from '../../../components/ui/Button.jsx';
+import Button from '@/components/ui/Button.jsx';
 import { typography, fontFamily } from '../styles/typography';
 
 function NodeConfigTab() {

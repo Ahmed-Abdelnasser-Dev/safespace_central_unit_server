@@ -9,14 +9,17 @@
 import React, { useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { selectNode } from '../nodesSlice';
-import Map from 'react-map-gl';
+import Map from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import Modal from '../../../components/ui/Modal';
-import { MapHoverCard, MapNodeMarker, useMapAutoCenter, useMapHoverPosition } from './map';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import MapHoverCard from './map/MapHoverCard.jsx';
+import MapNodeMarker from './map/MapNodeMarker.jsx';
+import useMapAutoCenter from './map/useMapAutoCenter.js';
+import useMapHoverPosition from './map/useMapHoverPosition.js';
 
 export default function FullScreenMapDialog({ nodes, selectedNodeId, onClose }) {
   const dispatch = useDispatch();

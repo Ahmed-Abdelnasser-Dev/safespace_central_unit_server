@@ -1,17 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import PolygonOverlay from './PolygonOverlay.jsx';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = [] }) {
   const [index, setIndex] = useState(0);
-  const [overlayRect, setOverlayRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
-  const containerRef = React.useRef(null);
-  const imageRef = React.useRef(null);
+  const containerRef = useRef(null);
+  const imageRef = useRef(null);
 
   useEffect(() => { setIndex(0); }, [mediaList]);
 
   const hasMedia = mediaList && mediaList.length > 0;
   const current = hasMedia ? mediaList[index] : null;
+
+  const currentUrl = current?.url 
+    ? (current.url.startsWith('http') ? current.url : current.url) 
+    : '';
 
   const next = () => setIndex((i) => (i + 1) % mediaList.length);
   const prev = () => setIndex((i) => (i - 1 + mediaList.length) % mediaList.length);
@@ -37,7 +40,6 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
       left = (container.width - width) / 2;
     }
 
-    setOverlayRect({ left, top, width, height });
   };
 
   useEffect(() => {
@@ -52,11 +54,11 @@ function MediaCarousel({ mediaList = [], accidentPolygon = null, nodePolygons = 
         <>
           <div className="relative w-full h-full">
             {current.type === 'video' ? (
-              <video src={current.url} className="object-cover w-full h-full" controls autoPlay muted />
+              <video src={currentUrl} className="object-cover w-full h-full" controls autoPlay muted />
             ) : (
               <>
                 <img
-                  src={current.url}
+                  src={currentUrl}
                   alt={`Accident media ${index + 1}`}
                   className="object-contain w-full h-full bg-black/10"
                   ref={imageRef}

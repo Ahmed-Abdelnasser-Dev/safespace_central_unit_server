@@ -20,10 +20,16 @@ const initialState = {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const createDefaultRoadRules = () => ({ lanes: [], speedLimit: 0 });
+
 const normalizeNode = (node) => {
   const nodeId = node.nodeId || node.id;
-  const lanes = node.roadRules?.lanes || [];
-  const existingPolygons = node.lanePolygons || [];
+  const roadRules = {
+    ...createDefaultRoadRules(),
+    ...(node.roadRules || {}),
+  };
+  const lanes = Array.isArray(roadRules.lanes) ? roadRules.lanes : [];
+  const existingPolygons = Array.isArray(node.lanePolygons) ? node.lanePolygons : [];
   const location = node.location || {
     latitude: typeof node.latitude === 'number' ? node.latitude : 0,
     longitude: typeof node.longitude === 'number' ? node.longitude : 0,
@@ -55,7 +61,7 @@ const normalizeNode = (node) => {
     name: node.name || nodeId,
     status: node.status || 'offline',
     location,
-    roadRules: node.roadRules || { lanes: [], speedLimit: 0 },
+    roadRules: roadRules,
     nodeSpecs: node.nodeSpecs || {},
     health: node.health || {
       cpu: 0,
@@ -149,14 +155,21 @@ const nodesSlice = createSlice({
     },
 
     addNode(state, action) {
-      state.nodes.unshift(action.payload);
+      state.nodes.unshift(normalizeNode(action.payload));
     },
 
     updateNodeRoadRules(state, action) {
       const { nodeId, roadRules } = action.payload;
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
-        node.roadRules = { ...node.roadRules, ...roadRules };
+        node.roadRules = {
+          ...createDefaultRoadRules(),
+          ...(node.roadRules || {}),
+          ...roadRules,
+        };
+        if (!Array.isArray(node.roadRules.lanes)) {
+          node.roadRules.lanes = [];
+        }
       }
     },
 
@@ -181,6 +194,12 @@ const nodesSlice = createSlice({
       const { nodeId, laneId, status } = action.payload;
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
+        if (!node.roadRules) {
+          node.roadRules = createDefaultRoadRules();
+        }
+        if (!Array.isArray(node.roadRules.lanes)) {
+          node.roadRules.lanes = [];
+        }
         const lane = node.roadRules.lanes.find(l => l.id === laneId);
         if (lane) {
           lane.status = status;
@@ -192,6 +211,15 @@ const nodesSlice = createSlice({
       const { nodeId, lane } = action.payload;
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
+        if (!node.roadRules) {
+          node.roadRules = createDefaultRoadRules();
+        }
+        if (!Array.isArray(node.roadRules.lanes)) {
+          node.roadRules.lanes = [];
+        }
+        if (!Array.isArray(node.lanePolygons)) {
+          node.lanePolygons = [];
+        }
         node.roadRules.lanes.push(lane);
         // Auto-create empty polygon placeholder for this lane
         const polygonExists = node.lanePolygons.some(p => p.laneNumber === lane.id);
@@ -214,6 +242,15 @@ const nodesSlice = createSlice({
       const { nodeId, laneId } = action.payload;
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
+        if (!node.roadRules) {
+          node.roadRules = createDefaultRoadRules();
+        }
+        if (!Array.isArray(node.roadRules.lanes)) {
+          node.roadRules.lanes = [];
+        }
+        if (!Array.isArray(node.lanePolygons)) {
+          node.lanePolygons = [];
+        }
         node.roadRules.lanes = node.roadRules.lanes.filter(l => l.id !== laneId);
         // Remove associated polygon when lane is deleted
         node.lanePolygons = node.lanePolygons.filter(p => p.laneNumber !== laneId);
@@ -287,9 +324,6 @@ const nodesSlice = createSlice({
       
       const node = state.nodes.find(n => n.id === nodeId);
       if (node) {
-        console.log(
-          `🔄 Updating node ${nodeId}: status=${status}, lastBeat=${new Date(timestamp).toLocaleTimeString()}`
-        );
         node.status = status;
         node.health = { ...node.health, ...health };
         node.lastHeartbeat = timestamp;
@@ -318,8 +352,6 @@ const nodesSlice = createSlice({
         if (streetName !== undefined) node.streetName = streetName;
         
         node.lastUpdate = new Date().toISOString();
-      } else {
-        console.warn(`⚠️ Node ${nodeId} not found in state during heartbeat update`);
       }
     },
 

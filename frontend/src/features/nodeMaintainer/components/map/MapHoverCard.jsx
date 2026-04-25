@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import Card from '../../../../components/ui/Card';
+import Card from '@/components/ui/Card';
 import { getNodeStatusColors, laneStatusConfig, normalizeLaneStatus } from './mapUtils';
 
 function MapHoverCard({ node, position }) {

@@ -1,4 +1,4 @@
-import { Marker } from 'react-map-gl';
+import { Marker } from 'react-map-gl/maplibre';
 import { getNodeStatusColors } from './mapUtils';
 
 function MapNodeMarker({ node, isSelected, onSelect, onHoverStart, onHoverEnd }) {

@@ -4,10 +4,27 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  envDir: '../',
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+          'vendor-icons': [
+            '@fortawesome/fontawesome-svg-core',
+            '@fortawesome/free-solid-svg-icons',
+            '@fortawesome/react-fontawesome',
+          ],
+          'vendor-map': ['maplibre-gl'],
+        },
+      },
     },
   },
   server: {

@@ -13,6 +13,64 @@ const turf = require('@turf/turf');
 const { logger } = require('./logger');
 
 /**
+ * Validate whether a value is a point-like object with finite numeric coordinates.
+ * Accepts numeric strings (e.g., "640") by coercing to Number.
+ *
+ * @param {unknown} point - Candidate point value
+ * @returns {boolean} True when point has finite x/y coordinates
+ */
+function isFiniteCoordinatePoint(point) {
+  if (!point || typeof point !== 'object' || Array.isArray(point)) {
+    return false;
+  }
+
+  return Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y));
+}
+
+/**
+ * Extract polygon rings from supported input formats.
+ *
+ * Supports:
+ * 1) Flat ring: [{x, y}, {x, y}, ...]
+ * 2) Nested rings: [[{x, y}, ...], [{x, y}, ...]]
+ * 3) Mixed arrays: point entries + nested ring entries
+ *
+ * @param {Array} points - Polygon points payload
+ * @returns {Array<Array>} Array of point rings
+ */
+function extractPointRings(points) {
+  if (!Array.isArray(points)) {
+    return [];
+  }
+
+  const hasNestedRings = points.some((entry) => Array.isArray(entry));
+
+  if (!hasNestedRings) {
+    return [points];
+  }
+
+  const rings = [];
+  const flatPoints = [];
+
+  points.forEach((entry) => {
+    if (Array.isArray(entry)) {
+      if (entry.length > 0) {
+        rings.push(entry);
+      }
+      return;
+    }
+
+    flatPoints.push(entry);
+  });
+
+  if (flatPoints.length > 0) {
+    rings.unshift(flatPoints);
+  }
+
+  return rings;
+}
+
+/**
  * Find which lane polygons intersect with the accident polygon
  * 
  * Converts pixel-coordinate polygons to Turf Polygon format,
@@ -29,7 +87,12 @@ function findIntersectedLanes(accidentPolygon, lanePolygons) {
   });
   
   // Validate inputs
-  if (!accidentPolygon || !accidentPolygon.points || accidentPolygon.points.length < 3) {
+  const accidentPointRings = extractPointRings(accidentPolygon?.points);
+  const hasValidAccidentRing = accidentPointRings.some(
+    (ring) => Array.isArray(ring) && ring.length >= 3
+  );
+
+  if (!accidentPolygon || !hasValidAccidentRing) {
     logger.warn('Invalid accident polygon - insufficient points', { accidentPolygon });
     return [];
   }
@@ -46,7 +109,15 @@ function findIntersectedLanes(accidentPolygon, lanePolygons) {
     const accidentTurfPolygon = convertPixelPolygonToTurf(accidentPolygon);
 
     if (!accidentTurfPolygon) {
-      logger.error('Failed to convert accident polygon to Turf format');
+      logger.error('Failed to convert accident polygon to Turf format', {
+        polygon: {
+          pointsCount: accidentPolygon?.points?.length,
+          baseWidth: accidentPolygon?.baseWidth,
+          baseHeight: accidentPolygon?.baseHeight,
+          firstPoint: accidentPolygon?.points?.[0],
+          lastPoint: accidentPolygon?.points?.[accidentPolygon.points.length - 1]
+        }
+      });
       return [];
     }
 
@@ -55,7 +126,12 @@ function findIntersectedLanes(accidentPolygon, lanePolygons) {
 
     lanePolygons.forEach((lanePolygon, index) => {
       try {
-        if (!lanePolygon.points || lanePolygon.points.length < 3) {
+        const lanePointRings = extractPointRings(lanePolygon.points);
+        const hasValidLaneRing = lanePointRings.some(
+          (ring) => Array.isArray(ring) && ring.length >= 3
+        );
+
+        if (!hasValidLaneRing) {
           logger.warn(`Lane polygon ${index} has insufficient points`, { lanePolygon });
           return;
         }
@@ -125,39 +201,131 @@ function findIntersectedLanes(accidentPolygon, lanePolygons) {
  * to ensure consistent intersection calculations regardless of image resolution.
  * 
  * @param {object} polygon - { points: [{x, y}], baseWidth, baseHeight }
- * @returns {object|null} Turf Polygon object or null if invalid
+ * @returns {object|null} Turf Polygon or MultiPolygon object, or null if invalid
  */
 function convertPixelPolygonToTurf(polygon) {
   try {
-    if (!polygon.points || polygon.points.length < 3) {
+    if (!polygon || typeof polygon !== 'object') {
+      logger.warn('Invalid polygon: not an object', { polygon });
       return null;
     }
-    
-    const baseWidth = polygon.baseWidth || 1920;
-    const baseHeight = polygon.baseHeight || 1080;
-    
-    // Normalize coordinates to 0-1000 range for consistent comparison
-    const normalizedPoints = polygon.points.map(point => {
-      const normalizedX = (point.x / baseWidth) * 1000;
-      const normalizedY = (point.y / baseHeight) * 1000;
-      return [normalizedX, normalizedY];
-    });
-    
-    // Close the polygon if not already closed
-    const firstPoint = normalizedPoints[0];
-    const lastPoint = normalizedPoints[normalizedPoints.length - 1];
-    
-    if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
-      normalizedPoints.push([...firstPoint]);
+
+    const pointRings = extractPointRings(polygon.points);
+
+    if (pointRings.length === 0) {
+      logger.warn('Invalid polygon: insufficient points', { pointsCount: polygon.points?.length });
+      return null;
     }
+
+    const baseWidth = Number(polygon.baseWidth ?? 1920);
+    const baseHeight = Number(polygon.baseHeight ?? 1080);
     
-    // Create Turf polygon (coordinates array must be wrapped in another array)
-    return turf.polygon([normalizedPoints]);
+    // Validate base dimensions
+    if (!Number.isFinite(baseWidth) || baseWidth <= 0 || !Number.isFinite(baseHeight) || baseHeight <= 0) {
+      logger.warn('Invalid base dimensions', { baseWidth, baseHeight });
+      return null;
+    }
+
+    // Normalize all rings to 0-1000 range for consistent comparison.
+    // Handles negative coordinates by normalizing relative to the base.
+    const normalizedRings = [];
+    let discardedRings = 0;
+
+    pointRings.forEach((ring, ringIndex) => {
+      if (!Array.isArray(ring) || ring.length < 3) {
+        discardedRings += 1;
+        logger.warn('Invalid polygon ring: insufficient points', {
+          ringIndex,
+          ringPointsCount: ring?.length,
+        });
+        return;
+      }
+
+      const invalidPointIndex = ring.findIndex((point) => !isFiniteCoordinatePoint(point));
+
+      if (invalidPointIndex !== -1) {
+        discardedRings += 1;
+        logger.warn('Invalid polygon: point with non-numeric coordinates', {
+          ringIndex,
+          pointIndex: invalidPointIndex,
+          invalidPoint: ring[invalidPointIndex],
+        });
+        return;
+      }
+
+      const normalizedRing = ring.map((point, pointIndex) => {
+        const pointX = Number(point.x);
+        const pointY = Number(point.y);
+        const normalizedX = (pointX / baseWidth) * 1000;
+        const normalizedY = (pointY / baseHeight) * 1000;
+
+        if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
+          logger.error('Failed to normalize point', {
+            ringIndex,
+            pointIndex,
+            original: point,
+            normalized: { normalizedX, normalizedY },
+            baseWidth,
+            baseHeight,
+          });
+          throw new Error(`Point normalization failed at ring ${ringIndex}, index ${pointIndex}`);
+        }
+
+        return [normalizedX, normalizedY];
+      });
+
+      // Close each ring if not already closed
+      const firstPoint = normalizedRing[0];
+      const lastPoint = normalizedRing[normalizedRing.length - 1];
+      const EPSILON = 0.001;
+      const isNotClosed = Math.abs(firstPoint[0] - lastPoint[0]) > EPSILON ||
+                          Math.abs(firstPoint[1] - lastPoint[1]) > EPSILON;
+
+      if (isNotClosed) {
+        normalizedRing.push([...firstPoint]);
+      }
+
+      if (normalizedRing.length < 4) {
+        discardedRings += 1;
+        logger.warn('Invalid polygon ring: fewer than 3 unique points after closing', {
+          ringIndex,
+          ringPointsCount: normalizedRing.length,
+        });
+        return;
+      }
+
+      normalizedRings.push(normalizedRing);
+    });
+
+    if (normalizedRings.length === 0) {
+      logger.warn('Invalid polygon: no valid rings after normalization', {
+        ringsReceived: pointRings.length,
+        discardedRings,
+      });
+      return null;
+    }
+
+    // Create Turf Polygon or MultiPolygon depending on rings count.
+    const turfFeature = normalizedRings.length === 1
+      ? turf.polygon([normalizedRings[0]])
+      : turf.multiPolygon(normalizedRings.map((ring) => [ring]));
+
+    if (!turfFeature || !turfFeature.geometry || !turfFeature.geometry.coordinates) {
+      logger.error('Turf geometry creation resulted in invalid structure', { turfFeature });
+      return null;
+    }
+
+    return turfFeature;
     
   } catch (error) {
     logger.error('Error converting polygon to Turf format', {
       error: error.message,
-      polygon
+      errorStack: error.stack,
+      polygon: {
+        pointsCount: polygon?.points?.length,
+        baseWidth: polygon?.baseWidth,
+        baseHeight: polygon?.baseHeight
+      }
     });
     return null;
   }

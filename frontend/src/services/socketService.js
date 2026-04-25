@@ -13,20 +13,15 @@ let socket = null;
  */
 export function initSocket() {
   if (!socket) {
-    console.log('🔌 Initializing Socket.IO connection to:', SOCKET_URL);
+    const accessToken = sessionStorage.getItem('accessToken');
     socket = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
+      auth: {
+        token: accessToken
+      },
+      transports: ['polling'],
       reconnectionDelay: 1000,
       reconnection: true,
       reconnectionAttempts: 10,
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ Connected to Safe Space Central Unit with ID:', socket.id);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('❌ Disconnected from Central Unit');
     });
 
     socket.on('connect_error', (err) => {
@@ -44,6 +39,24 @@ export function getSocket() {
     return initSocket();
   }
   return socket;
+}
+
+/**
+ * Listen for accident assignments
+ * @param {Function} callback - handler for assigned accident data
+ */
+export function onIncidentAssigned(callback) {
+  const s = getSocket();
+  s.on('incident-assigned', callback);
+}
+
+/**
+ * Remove accident assignment listener
+ * @param {Function} callback
+ */
+export function offIncidentAssigned(callback) {
+  const s = getSocket();
+  s.off('incident-assigned', callback);
 }
 
 /**

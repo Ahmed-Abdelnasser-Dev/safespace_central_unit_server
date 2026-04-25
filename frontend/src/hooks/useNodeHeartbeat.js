@@ -25,25 +25,13 @@ export function useNodeHeartbeat() {
 
   useEffect(() => {
     const handleHeartbeat = (data) => {
-      const { nodeId, status, health, timestamp } = data;
-      console.log(
-        `📡 Heartbeat from ${nodeId}: status=${status}, lastBeat=${new Date(timestamp).toLocaleTimeString()}`
-      );
-
-      // Dispatch action to update node state with heartbeat data
       dispatch(updateNodeFromHeartbeat(data));
     };
 
-    // Subscribe to heartbeat events from Socket.IO
     onNodeHeartbeat(handleHeartbeat);
 
-    // Log connection status
-    console.log('✅ Node heartbeat listener activated');
-
-    // Cleanup: Remove listener on unmount
     return () => {
       offNodeHeartbeat(handleHeartbeat);
-      console.log('❌ Node heartbeat listener deactivated');
     };
   }, [dispatch]);
 }

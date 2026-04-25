@@ -8,6 +8,8 @@
 
 const express = require('express');
 const aiController = require('./ai.controller');
+const validate = require('../../middleware/validate');
+const { aiAnalyzeSchema } = require('./ai.schema');
 
 const router = express.Router();
 
@@ -15,6 +17,6 @@ const router = express.Router();
  * POST /api/ai/analyze
  * Test AI analysis
  */
-router.post('/analyze', aiController.analyzeAccident);
+router.post('/analyze', validate(aiAnalyzeSchema), aiController.analyzeAccident);
 
 module.exports = router;

@@ -1,5 +1,5 @@
-import Checkbox from '../../../components/ui/Checkbox.jsx';
-import Badge from '../../../components/ui/Badge.jsx';
+import Checkbox from '@/components/ui/Checkbox.jsx';
+import Badge from '@/components/ui/Badge.jsx';
 
 /**
  * Card representing a suggested automated action.

@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import Button from '../../../components/ui/Button';
-import Modal from '../../../components/ui/Modal';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 
 /**
  * EditNodeModal - Form for editing node configuration

@@ -11,6 +11,8 @@ const express = require('express');
 const validate = require('../../middleware/validate');
 const { heartbeatSchema, nodeRegistrationSchema, deleteNodeSchema, updateNodeSchema } = require('./node.schema');
 const { uploadSnapshot } = require('../../middleware/upload');
+const { validateUploadedImageSignatures } = require('../../middleware/validateFileSignatures');
+const nodeApiKey = require('../../middleware/nodeApiKey');
 const nodeController = require('./node.controller');
 
 const router = express.Router();
@@ -25,6 +27,7 @@ const router = express.Router();
  */
 router.post(
   '/heartbeat',
+  nodeApiKey,
   validate(heartbeatSchema),
   nodeController.handleHeartbeat
 );
@@ -35,6 +38,7 @@ router.post(
  */
 router.post(
   '/register',
+  nodeApiKey,
   validate(nodeRegistrationSchema),
   nodeController.registerNode
 );
@@ -45,7 +49,9 @@ router.post(
  */
 router.post(
   '/:nodeId/snapshot',
+  nodeApiKey,
   uploadSnapshot.single('file'),
+  validateUploadedImageSignatures,
   nodeController.uploadSnapshot
 );
 
