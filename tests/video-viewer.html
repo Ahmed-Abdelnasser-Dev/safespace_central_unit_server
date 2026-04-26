@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSpace - Camera Feed Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f7fafc;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #48bb78;
+        }
+
+        .status-dot.disconnected {
+            background: #f56565;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .video-container {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .video-frame {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 450px;
+        }
+
+        .video-frame img {
+            max-width: 100%;
+            max-height: 600px;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .placeholder {
+            color: #a0aec0;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .placeholder svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .stats {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .stat-card {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .controls {
+            padding: 24px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .logs {
+            padding: 24px;
+            background: #1a202c;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            color: #a0aec0;
+            margin-bottom: 4px;
+        }
+
+        .log-entry.success {
+            color: #48bb78;
+        }
+
+        .log-entry.error {
+            color: #f56565;
+        }
+
+        .log-entry.info {
+            color: #4299e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Live Camera Feed Viewer</h1>
+            <p>Real-time video feed from SafeSpace Detection Node</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <strong>Node:</strong> <span id="nodeId">-</span>
+            </div>
+            <div class="status-item">
+                <strong>FPS:</strong> <span id="fpsDisplay">0</span>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <div class="video-frame" id="videoFrame">
+                <div class="placeholder" id="placeholder">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <p>Waiting for video feed...</p>
+                    <p style="font-size: 12px; margin-top: 8px;">Make sure the test script is running</p>
+                </div>
+                <img id="videoImage" style="display: none;" alt="Live Feed">
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Frames Received</div>
+                    <div class="stat-value" id="frameCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Data Received</div>
+                    <div class="stat-value" id="dataReceived">0 KB</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Uptime</div>
+                    <div class="stat-value" id="uptime">0s</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Last Frame</div>
+                    <div class="stat-value" id="lastFrame">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="connectBtn" onclick="connect()">Connect</button>
+            <button class="btn btn-secondary" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let frameCount = 0;
+        let totalDataReceived = 0;
+        let startTime = null;
+        let fpsInterval = null;
+        let lastFrameTime = null;
+        let frameTimestamps = [];
+
+        const WS_URL = 'ws://localhost:5000/ws/nodes?client=dashboard';
+        const NODE_ID = 'safe-space-node-001';
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (connected) {
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDot.className = 'status-dot disconnected';
+                statusText.textContent = 'Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function updateFPS() {
+            const now = Date.now();
+            frameTimestamps = frameTimestamps.filter(t => now - t < 1000);
+            const fps = frameTimestamps.length;
+            document.getElementById('fpsDisplay').textContent = fps;
+        }
+
+        function updateUptime() {
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('uptime').textContent = `${elapsed}s`;
+            }
+        }
+
+        function connect() {
+            log('Connecting to WebSocket server...', 'info');
+            
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                log('WebSocket connected', 'success');
+                updateStatus(true);
+                startTime = Date.now();
+                
+                // Subscribe to node video feed
+                const subscribeMsg = {
+                    type: 'dashboard_subscribe',
+                    nodeIds: [NODE_ID]
+                };
+                ws.send(JSON.stringify(subscribeMsg));
+                log(`Subscribed to node: ${NODE_ID}`, 'info');
+                document.getElementById('nodeId').textContent = NODE_ID;
+
+                // Start uptime counter
+                setInterval(updateUptime, 1000);
+                
+                // Start FPS counter
+                fpsInterval = setInterval(updateFPS, 100);
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    switch (message.type) {
+                        case 'subscribed':
+                            log('Subscription confirmed', 'success');
+                            break;
+                        
+                        case 'video_frame':
+                            handleVideoFrame(message);
+                            break;
+                        
+                        case 'node_heartbeat':
+                            log(`Heartbeat from ${message.nodeId}`, 'info');
+                            break;
+                        
+                        default:
+                            log(`Received: ${message.type}`, 'info');
+                    }
+                } catch (error) {
+                    log(`Error parsing message: ${error.message}`, 'error');
+                }
+            };
+            
+            ws.onclose = () => {
+                log('WebSocket disconnected', 'error');
+                updateStatus(false);
+                if (fpsInterval) {
+                    clearInterval(fpsInterval);
+                    fpsInterval = null;
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+            };
+        }
+
+        function handleVideoFrame(message) {
+            frameCount++;
+            frameTimestamps.push(Date.now());
+            
+            const frameData = message.frameData;
+            const dataSize = frameData.length;
+            totalDataReceived += dataSize;
+            
+            // Update stats
+            document.getElementById('frameCount').textContent = frameCount;
+            document.getElementById('dataReceived').textContent = `${(totalDataReceived / 1024).toFixed(1)} KB`;
+            document.getElementById('lastFrame').textContent = new Date(message.timestamp).toLocaleTimeString();
+            
+            // Update image
+            const videoImage = document.getElementById('videoImage');
+            const placeholder = document.getElementById('placeholder');
+            
+            // Check if it's a real image (starts with base64 image data)
+            if (frameData.length > 1000) {
+                // Real image data from file
+                videoImage.src = `data:image/jpeg;base64,${frameData}`;
+                videoImage.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                // Sample/placeholder data
+                placeholder.innerHTML = `
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <p>Receiving frames...</p>
+                    <p style="font-size: 12px; margin-top: 8px;">Frame #${frameCount} - ${(dataSize / 1024).toFixed(2)} KB</p>
+                    <p style="font-size: 11px; margin-top: 4px; color: #718096;">Test image not found - using sample data</p>
+                `;
+            }
+            
+            log(`Frame #${frameCount} received (${(dataSize / 1024).toFixed(2)} KB)`, 'success');
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            setTimeout(connect, 500);
+        });
+    </script>
+</body>
+</html>
