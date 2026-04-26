@@ -8,10 +8,18 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { selectSelectedNodeId } from '../features/nodeMaintainer/nodesSlice';
+import { NODE_VIDEO_WS_URL } from '../lib/apiConfig';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:5000';
+const buildNodeVideoUrl = (baseUrl) => {
+  const url = new URL(baseUrl);
+  if (!url.pathname.includes('/ws/nodes')) {
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/ws/nodes`;
+  }
+  url.searchParams.set('client', 'dashboard');
+  return url.toString();
+};
 
 /**
  * Hook for managing node video feed via WebSocket
@@ -30,7 +38,7 @@ export function useNodeVideoFeed() {
     // Connect to WebSocket
     const connect = () => {
       try {
-        const ws = new WebSocket(`${WS_URL}/ws/nodes?client=dashboard`);
+        const ws = new WebSocket(buildNodeVideoUrl(NODE_VIDEO_WS_URL));
         wsRef.current = ws;
 
         ws.onopen = () => {

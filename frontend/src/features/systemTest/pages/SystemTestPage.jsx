@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { API_URL } from '@/lib/apiConfig';
 
 function SystemTestPage() {
   const [backendStatus, setBackendStatus] = useState({
@@ -22,7 +23,7 @@ function SystemTestPage() {
     setTestResults({ healthCheck: '⏳ Testing...', apiTest: '⏳ Testing...' });
 
     try {
-      const healthRes = await fetch('/api/health');
+      const healthRes = await fetch(`${API_URL}/health`);
       const healthData = await healthRes.json();
       if (healthData.status === 'success') {
         setTestResults((prev) => ({ ...prev, healthCheck: '✅ Passed' }));
@@ -52,7 +53,7 @@ function SystemTestPage() {
     }
 
     try {
-      const testRes = await fetch('/api/test-frontend');
+      const testRes = await fetch(`${API_URL}/test-frontend`);
       const testData = await testRes.json();
       if (testData.status === 'success') {
         setTestResults((prev) => ({ ...prev, apiTest: '✅ Passed' }));

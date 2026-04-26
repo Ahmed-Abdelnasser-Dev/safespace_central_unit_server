@@ -8,11 +8,16 @@ Create a local `.env` file in the frontend root and define only non-secret defau
 
 ```env
 VITE_API_URL=http://localhost:5000/api
-VITE_WS_URL=ws://localhost:5000
+VITE_SOCKET_URL=http://localhost:5000
+VITE_NODE_VIDEO_WS_URL=ws://localhost:5000
+VITE_ENABLE_DEV_PROXY=false
+VITE_DEV_PROXY_TARGET=http://localhost:5000
 ```
 
-Current runtime code reads `VITE_API_URL` and `VITE_WS_URL`.
-Planned split variables (`VITE_SOCKET_URL`, `VITE_NODE_VIDEO_WS_URL`) will be introduced with the frontend decoupling phase.
+Current runtime code reads `VITE_API_URL`, `VITE_SOCKET_URL`, and `VITE_NODE_VIDEO_WS_URL`.
+Legacy `VITE_WS_URL` is still supported as a fallback for node video feeds during transition.
+
+Set `VITE_ENABLE_DEV_PROXY=true` if you want Vite to proxy `/api`, `/socket.io`, and `/uploads` to `VITE_DEV_PROXY_TARGET`.
 
 ## Security Notes
 

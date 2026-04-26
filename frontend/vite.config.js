@@ -1,47 +1,55 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  envDir: '../',
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
-          'vendor-icons': [
-            '@fortawesome/fontawesome-svg-core',
-            '@fortawesome/free-solid-svg-icons',
-            '@fortawesome/react-fontawesome',
-          ],
-          'vendor-map': ['maplibre-gl'],
-        },
-      },
-    },
-  },
-  server: {
-    port: 4000,
-    proxy: {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://localhost:5000';
+  const enableProxy = env.VITE_ENABLE_DEV_PROXY === 'true';
+
+  const server = { port: 4000 };
+
+  if (enableProxy) {
+    server.proxy = {
       '/api': {
-        target: 'http://localhost:5000',
+        target: proxyTarget,
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: proxyTarget,
         ws: true,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: proxyTarget,
         changeOrigin: true,
       },
+    };
+  }
+
+  return {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+            'vendor-icons': [
+              '@fortawesome/fontawesome-svg-core',
+              '@fortawesome/free-solid-svg-icons',
+              '@fortawesome/react-fontawesome',
+            ],
+            'vendor-map': ['maplibre-gl'],
+          },
+        },
+      },
+    },
+    server,
+  };
 });

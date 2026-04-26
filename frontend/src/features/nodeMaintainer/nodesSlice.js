@@ -9,6 +9,7 @@
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { API_URL } from '../../lib/apiConfig';
 
 const initialState = {
   nodes: [],
@@ -17,8 +18,6 @@ const initialState = {
   isLoading: false,
   error: null,
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const createDefaultRoadRules = () => ({ lanes: [], speedLimit: 0 });
 
@@ -93,7 +92,7 @@ const normalizeNode = (node) => {
 
 export const fetchNodes = createAsyncThunk('nodes/fetchNodes', async (_, thunkApi) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/nodes`);
+    const response = await axios.get(`${API_URL}/nodes`);
     return response.data.data || [];
   } catch (error) {
     return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to fetch nodes');
@@ -102,8 +101,8 @@ export const fetchNodes = createAsyncThunk('nodes/fetchNodes', async (_, thunkAp
 
 export const registerNode = createAsyncThunk('nodes/registerNode', async (payload, thunkApi) => {
   try {
-    await axios.post(`${API_BASE_URL}/api/nodes/register`, payload);
-    const response = await axios.get(`${API_BASE_URL}/api/nodes`);
+    await axios.post(`${API_URL}/nodes/register`, payload);
+    const response = await axios.get(`${API_URL}/nodes`);
     return response.data.data || [];
   } catch (error) {
     return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to register node');
@@ -112,7 +111,7 @@ export const registerNode = createAsyncThunk('nodes/registerNode', async (payloa
 
 export const updateNodePolygons = createAsyncThunk('nodes/updateNodePolygons', async ({ nodeId, lanePolygons }, thunkApi) => {
   try {
-    const response = await axios.patch(`${API_BASE_URL}/api/nodes/${nodeId}`, { lanePolygons });
+    const response = await axios.patch(`${API_URL}/nodes/${nodeId}`, { lanePolygons });
     return response.data.data;
   } catch (error) {
     return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to update polygons');
@@ -121,7 +120,7 @@ export const updateNodePolygons = createAsyncThunk('nodes/updateNodePolygons', a
 
 export const deleteNode = createAsyncThunk('nodes/deleteNode', async (nodeId, thunkApi) => {
   try {
-    await axios.delete(`${API_BASE_URL}/api/nodes/${nodeId}`);
+    await axios.delete(`${API_URL}/nodes/${nodeId}`);
     return nodeId;
   } catch (error) {
     return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to delete node');
@@ -134,7 +133,7 @@ export const deleteNode = createAsyncThunk('nodes/deleteNode', async (nodeId, th
  */
 export const updateNode = createAsyncThunk('nodes/updateNode', async ({ nodeId, updates }, thunkApi) => {
   try {
-    const response = await axios.patch(`${API_BASE_URL}/api/nodes/${nodeId}`, updates);
+    const response = await axios.patch(`${API_URL}/nodes/${nodeId}`, updates);
     return response.data.data;
   } catch (error) {
     return thunkApi.rejectWithValue(error?.response?.data?.message || 'Failed to update node');
