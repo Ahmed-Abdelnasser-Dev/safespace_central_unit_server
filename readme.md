@@ -37,6 +37,14 @@ npm install
 npm run dev
 ```
 
+### Monorepo Runtime Status
+- Monorepo default runtime entrypoints are frozen after split validation.
+- Archived commands remain available for fallback verification only:
+	- `npm run legacy:dev`
+	- `npm run legacy:dev:backend`
+	- `npm run legacy:dev:frontend`
+- Default `npm run dev`, `npm run dev:backend`, and `npm run dev:frontend` now fail fast with a freeze notice.
+
 ### Next Steps (Potential)
 - Replace `ChartWrapper` with real charts (e.g. Recharts / Chart.js)
 - Connect live data sources (WebSocket / MQTT)

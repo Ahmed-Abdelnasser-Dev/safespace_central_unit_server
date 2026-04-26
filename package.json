@@ -8,9 +8,12 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev": "echo '[FROZEN] Monorepo runtime is archived after repo split. Use extracted backend/frontend repos or run npm run legacy:dev in this repo.' && exit 1",
+    "dev:backend": "echo '[FROZEN] Monorepo backend run entrypoint is archived. Use npm run legacy:dev:backend if needed.' && exit 1",
+    "dev:frontend": "echo '[FROZEN] Monorepo frontend run entrypoint is archived. Use npm run legacy:dev:frontend if needed.' && exit 1",
+    "legacy:dev": "concurrently \"npm run legacy:dev:backend\" \"npm run legacy:dev:frontend\"",
+    "legacy:dev:backend": "npm run dev --workspace=backend",
+    "legacy:dev:frontend": "npm run dev --workspace=frontend",
     "install:all": "npm install && npm install --workspace=backend && npm install --workspace=frontend"
   },
   "keywords": [
