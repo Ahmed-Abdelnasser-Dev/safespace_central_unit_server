@@ -18,7 +18,13 @@ const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+const fs = require('fs');
+const path = require('path');
+
+const backendEnvPath = path.resolve(__dirname, '../.env');
+const legacyMonorepoEnvPath = path.resolve(__dirname, '../../.env');
+const selectedEnvPath = fs.existsSync(backendEnvPath) ? backendEnvPath : legacyMonorepoEnvPath;
+require('dotenv').config({ path: selectedEnvPath });
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });

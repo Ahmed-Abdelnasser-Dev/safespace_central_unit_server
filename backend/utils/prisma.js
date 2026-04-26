@@ -39,4 +39,3 @@ prisma.$on('warn',  (e) => logger.warn('Prisma warning: ' + e.message));
 module.exports = prisma;
 module.exports.prisma = prisma;
 module.exports.pool = pool;
-console.log('DATABASE_URL IS:', process.env.DATABASE_URL)

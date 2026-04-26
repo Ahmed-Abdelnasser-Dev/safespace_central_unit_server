@@ -3,15 +3,21 @@
  * Restored file: handles port availability and graceful shutdown.
  */
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const fs = require('fs');
+const path = require('path');
+
+const backendEnvPath = path.resolve(__dirname, '.env');
+const legacyMonorepoEnvPath = path.resolve(__dirname, '../.env');
+const selectedEnvPath = fs.existsSync(backendEnvPath) ? backendEnvPath : legacyMonorepoEnvPath;
+require('dotenv').config({ path: selectedEnvPath });
+
 const env = require('./config/env');
 const net = require('net');
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const { Server } = require('socket.io');
 const app = require('./app');
 const { logger } = require('./utils/logger');
+const { allowedOrigins, isOriginAllowed } = require('./config/cors');
 const wsManager = require('./utils/websocketManager');
 const queueManagerModule = require('./modules/incidents/incidentQueueManager');
 const { startHeartbeatMonitor } = require('./modules/nodes/node.service');
@@ -20,9 +26,6 @@ const PORT = env.PORT;
 const HOST = env.HOST;
 const NODE_ENV = env.NODE_ENV;
 const FRONTEND_URL = env.FRONTEND_URL;
-const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(',')
-  : [FRONTEND_URL, 'http://192.168.10.0/24'];
 
 // Create HTTP server and Socket.IO instance
 const server = http.createServer(app);
@@ -42,19 +45,11 @@ const io = new Server(server, {
       }
       
       // Check if origin is allowed
-      const isAllowed = ALLOWED_ORIGINS.some(allowed => {
-        if (allowed.includes('/')) {
-          // Subnet notation - allow any IP in range
-          return origin.includes('192.168.10.') || origin.includes('192.168.1.') || origin === FRONTEND_URL;
-        }
-        return origin === allowed;
-      });
-      
-      if (isAllowed) {
+      if (isOriginAllowed(origin)) {
         logger.info(`🔌 Socket.IO: Allowing origin ${origin}`);
         callback(null, true);
       } else {
-        logger.warn(`🔌 Socket.IO: Blocked origin ${origin}`);
+        logger.warn(`🔌 Socket.IO: Blocked origin ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -405,8 +400,9 @@ ensurePortAvailable(PORT)
         logger.info(`Environment: ${NODE_ENV}`);
         logger.info(`Server listening on ${HOST}:${PORT}`);
         logger.info(`Frontend URL configured: ${FRONTEND_URL}`);
+        logger.info(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
         logger.info(`API endpoint: http://localhost:5000/api`);
-        logger.info(`Accepting connections from LAN subnet`);
+        logger.info('CORS policy uses explicit allowlist from backend env');
       })
       .on('error', (err) => {
         if (err.code === 'EADDRINUSE') {

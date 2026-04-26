@@ -11,8 +11,6 @@ const catchAsync = require('../../middleware/catchAsync');
 const AppError = require('../../utils/AppError');
 const incidentService = require('./incident.service');
 const { logger } = require('../../utils/logger');
-const dotenv = require('dotenv');
-dotenv.config({ path: require('path').resolve(__dirname, '../../../.env') });
 const MobileAppNotificationService = require('../../utils/mobileAppNotificationService');
 const mobileAppNotificationService = new MobileAppNotificationService(process.env.MOBILE_APP_SERVER_URL);
 

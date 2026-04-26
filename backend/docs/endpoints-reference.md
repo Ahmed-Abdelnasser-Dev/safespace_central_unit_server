@@ -1,9 +1,27 @@
 # Backend Endpoints Reference
 
 This file lists all currently exposed backend endpoints for the SafeSpace Central Unit.
+This document is the canonical API and realtime contract source for frontend consumers.
 
 ## Base
 - Default local base URL: `http://localhost:5000`
+- API base path for HTTP clients: `/api`
+- Media base path for uploaded files: `/uploads`
+
+## Frontend Consumer Contract
+
+Use this section as the source of truth for frontend integration.
+
+- HTTP API origin: backend deployment origin (for local: `http://localhost:5000`).
+- API base URL: `${BACKEND_ORIGIN}/api`.
+- Socket.IO endpoint: `${BACKEND_ORIGIN}/socket.io`.
+- Node/dashboard raw websocket endpoint: `${BACKEND_ORIGIN}/ws/nodes`.
+- Media URL behavior:
+  - Backend frequently returns media URLs as relative paths (example: `/uploads/incidents/file.jpg`).
+  - Frontend must resolve these against backend origin.
+- CORS/origin policy is backend-owned and configured only via backend env:
+  - `FRONTEND_URL`
+  - `ALLOWED_ORIGINS` (comma-separated explicit origins)
 
 ## Health and Utility
 - `GET /health`
@@ -35,6 +53,11 @@ This file lists all currently exposed backend endpoints for the SafeSpace Centra
 - `POST /api/auth/change-password`
   - Change password (first-login or authenticated flow).
   - Access: Public route.
+
+Auth behavior notes:
+- Protected API routes require `Authorization: Bearer <accessToken>`.
+- `POST /api/auth/refresh` issues refreshed tokens.
+- Incident decision routes are protected and role-gated (`admin`, `road_observer`).
 
 ## Users (`/api/users`)
 All user routes are JWT protected (`protect`).
@@ -127,6 +150,11 @@ Current management routes:
 - Important inbound events handled:
   - `node_accident_detected`
   - `admin_accident_response`
+- Important outbound events emitted:
+  - `accident-detected`
+  - `incident-assigned`
+  - `decision-confirmed`
+  - `admin_accident_response`
 
 ### Raw WebSocket
 - Endpoint: `WS /ws/nodes`
@@ -137,6 +165,18 @@ Current management routes:
   - `incident`
   - `video_frame`
   - `dashboard_subscribe`
+
+Raw websocket outbound message types include:
+- `registered`
+- `node_connected`
+- `node_heartbeat`
+- `heartbeat_ack`
+- `incident`
+- `incident_ack`
+- `video_frame`
+- `subscribed`
+- `command`
+- `node_disconnected`
 
 ## Notes
 - API rate limiter is applied under `/api`.

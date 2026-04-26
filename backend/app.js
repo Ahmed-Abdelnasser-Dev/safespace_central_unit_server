@@ -12,8 +12,8 @@ const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
-const env = require('./config/env');
 const { logger } = require("./utils/logger");
+const { allowedOrigins, isOriginAllowed } = require('./config/cors');
 const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
 
@@ -31,26 +31,17 @@ app.use(helmet({
 }));
 
 // CORS Configuration for LAN access
-const FRONTEND_URL = env.FRONTEND_URL;
-const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(",")
-  : [FRONTEND_URL];
-
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (curl, Postman, Raspberry Pi)
       if (!origin) return callback(null, true);
 
-      // Check explicit origins or LAN subnet
-      const isAllowed =
-        ALLOWED_ORIGINS.some((allowed) => origin === allowed) ||
-        origin.startsWith("http://192.168.10.");
-
-      if (isAllowed) {
+      // Accept only backend-owned explicit allowlist entries.
+      if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
-        logger.warn(`Blocked CORS origin: ${origin}`);
+        logger.warn(`Blocked CORS origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
